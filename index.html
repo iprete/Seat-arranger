@@ -270,7 +270,7 @@
       tdElements: {},
       isAssigning: false,  // 계산 중 여부 플래그
 
-      // 좌석 생성 (수정 전 직사각형 배열 방식)
+      // 좌석 생성: 수동 제외가 가능한 직사각형 그리드 (numCols = Math.ceil(numPeople/numRows))
       init() {
         this.seatMatrix = [];
         this.excludedSeats.clear();
@@ -302,7 +302,7 @@
         html += '</table>';
         document.getElementById('gridArea').innerHTML = html;
 
-        // 수동으로 좌석 클릭 시 제외/복원
+        // 수동 좌석 클릭 시 제외/복원 처리
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
@@ -326,14 +326,13 @@
         }
       },
 
-      // 고급 자리 배치 (GA, 로컬 탐색, 적응형 돌연변이) – 중복 실행 방지를 위해 버튼 비활성화
+      // 고급 자리 배치 (유전 알고리즘, 적응형 돌연변이, 후처리 로컬 탐색 적용)
       async assignSeatsAdvanced() {
         if (this.isAssigning) {
           alert("이미 계산 중입니다.");
           return;
         }
         this.isAssigning = true;
-        // 버튼 비활성화
         document.getElementById("assignSeatsAdvancedButton").disabled = true;
         
         const chk = this.checkInputs();
@@ -385,7 +384,6 @@
           population.push({ mapping, fitness: 0, perm });
         }
 
-        // 적응형 돌연변이 확률 설정 및 개선 추적
         let mutationProb = 0.3;
         let previousBestFitness = -Infinity;
 
@@ -395,7 +393,7 @@
           }
           population.sort((a, b) => b.fitness - a.fitness);
           
-          // 적응형 돌연변이 조정
+          // 적응형 돌연변이 확률 조정
           let currentBestFitness = population[0].fitness;
           if (currentBestFitness - previousBestFitness < 0.001) {
             mutationProb = Math.min(mutationProb + 0.05, 0.5);
@@ -423,10 +421,10 @@
         population.sort((a, b) => b.fitness - a.fitness);
         let best = population[0];
 
-        // 로컬 탐색 후처리
+        // 후처리 로컬 탐색
         best = localSearch(best, seats, frontArr, backArr, notPairs);
 
-        // 결과 반영
+        // 결과 반영: 최적 해의 mapping을 테이블에 출력
         for (let s of seats) {
           const pid = best.mapping[s.id];
           this.tdElements[s.id].textContent = pid || '-';
@@ -436,10 +434,8 @@
         const sec = ((endTime - startTime) / 1000).toFixed(2);
         document.getElementById('scoreArea').textContent =
           `조건이행률: ${ratio.toFixed(2)}%, 처리시간: ${sec}초`;
-
         loadingContainer.style.display = 'none';
         this.isAssigning = false;
-        // 버튼 재활성화
         document.getElementById("assignSeatsAdvancedButton").disabled = false;
       },
 
@@ -455,7 +451,7 @@
         return best;
       },
 
-      // 앞자리 선호 보상: 교탁과 가까울수록 높은 보상
+      // 앞자리 선호자 보상: 교탁에 가까울수록(행 번호가 낮을수록) 높은 보상 부여
       calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
         for (let [p1, p2] of notPairs) {
@@ -467,7 +463,12 @@
           }
           if (s1 && s2) {
             const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
-            sc += d * 10;
+            // d가 4 이상이면 완전 떨어져 있다고 간주: 40점, 미만이면 d*10 점 부여
+            if (d >= 4) {
+              sc += 40;
+            } else {
+              sc += d * 10;
+            }
           }
         }
         for (let s of seats) {
@@ -483,11 +484,9 @@
         return sc;
       },
 
+      // 만족도 계산: 각 싫은 쌍에 대해 d가 4 이상이면 100% 만족, 미만이면 (d/4)*100%로 계산하여 평균 반환
       computeSatisfaction(mapping, seats, notPairs) {
         if (!notPairs.length) return 100;
-        const rowMax = this.seatMatrix.length;
-        const colMax = Math.max(...this.seatMatrix.map(row => row.length));
-        const maxDist = (rowMax - 1) + (colMax - 1);
         let sumRatio = 0, cnt = 0;
         for (let [a, b] of notPairs) {
           let s1 = null, s2 = null;
@@ -498,7 +497,8 @@
           }
           if (s1 && s2) {
             const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
-            sumRatio += (d / maxDist);
+            const ratio = d >= 4 ? 1 : d / 4;
+            sumRatio += ratio;
             cnt++;
           }
         }
