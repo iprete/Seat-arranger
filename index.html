@@ -156,7 +156,7 @@
 
     <div class="buttons">
       <button onclick="app.init()">좌석 생성하기</button>
-      <button onclick="app.assignSeatsAdvanced()">고급 자리 배치</button>
+      <button id="assignSeatsAdvancedButton" onclick="app.assignSeatsAdvanced()">고급 자리 배치</button>
       <button onclick="app.downloadPDF()">PDF 저장</button>
     </div>
 
@@ -326,23 +326,27 @@
         }
       },
 
-      // 고급 자리 배치 (GA & 후처리 로컬 탐색 적용)
+      // 고급 자리 배치 (GA, 로컬 탐색, 적응형 돌연변이) – 중복 실행 방지를 위해 버튼 비활성화
       async assignSeatsAdvanced() {
         if (this.isAssigning) {
           alert("이미 계산 중입니다.");
           return;
         }
         this.isAssigning = true;
-
+        // 버튼 비활성화
+        document.getElementById("assignSeatsAdvancedButton").disabled = true;
+        
         const chk = this.checkInputs();
         if (!chk.ok) {
           alert(chk.msg);
           this.isAssigning = false;
+          document.getElementById("assignSeatsAdvancedButton").disabled = false;
           return;
         }
         if (!this.seatMatrix.length) {
           alert('먼저 [좌석 생성하기] 버튼을 눌러주세요.');
           this.isAssigning = false;
+          document.getElementById("assignSeatsAdvancedButton").disabled = false;
           return;
         }
         const { numPeople, frontArr, backArr, notPairs, popSize, generations } = chk;
@@ -359,6 +363,7 @@
         if (availableSeats.length !== numPeople) {
           alert('사용 가능한 좌석 수가 인원 수와 정확히 맞지 않습니다. 수동으로 좌석을 제외하거나 복원하여 맞춰주세요.');
           this.isAssigning = false;
+          document.getElementById("assignSeatsAdvancedButton").disabled = false;
           return;
         }
         availableSeats.sort((a, b) => (a.row - b.row) || (a.col - b.col));
@@ -380,7 +385,7 @@
           population.push({ mapping, fitness: 0, perm });
         }
 
-        // 초기 돌연변이 확률 및 개선 추적 변수
+        // 적응형 돌연변이 확률 설정 및 개선 추적
         let mutationProb = 0.3;
         let previousBestFitness = -Infinity;
 
@@ -390,7 +395,7 @@
           }
           population.sort((a, b) => b.fitness - a.fitness);
           
-          // 적응형 돌연변이 확률 조정
+          // 적응형 돌연변이 조정
           let currentBestFitness = population[0].fitness;
           if (currentBestFitness - previousBestFitness < 0.001) {
             mutationProb = Math.min(mutationProb + 0.05, 0.5);
@@ -412,17 +417,16 @@
             newPop.push({ mapping: childMapping, fitness: 0, perm: childPerm });
           }
           population = newPop;
-
           loadingBar.style.width = ((g + 1) / generations * 100) + '%';
           await new Promise(resolve => setTimeout(resolve, 0));
         }
         population.sort((a, b) => b.fitness - a.fitness);
         let best = population[0];
 
-        // 후처리: 로컬 탐색 적용 (주변 스왑 시도)
+        // 로컬 탐색 후처리
         best = localSearch(best, seats, frontArr, backArr, notPairs);
 
-        // 테이블 반영: 배정된 인원 번호 표시
+        // 결과 반영
         for (let s of seats) {
           const pid = best.mapping[s.id];
           this.tdElements[s.id].textContent = pid || '-';
@@ -435,6 +439,8 @@
 
         loadingContainer.style.display = 'none';
         this.isAssigning = false;
+        // 버튼 재활성화
+        document.getElementById("assignSeatsAdvancedButton").disabled = false;
       },
 
       tournamentSelection(population) {
@@ -449,7 +455,7 @@
         return best;
       },
 
-      // 앞자리 선호자 보상 강화: 행 번호가 낮을수록(교탁에 가까울수록) 높은 보상을 부여
+      // 앞자리 선호 보상: 교탁과 가까울수록 높은 보상
       calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
         for (let [p1, p2] of notPairs) {
