@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>자리배치표 - 고급 탐색</title>
+  <title>자리배치표 - 고급 탐색 </title>
   <style>
     body {
       font-family: sans-serif;
@@ -107,7 +107,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>자리배치표 - 고급 탐색</h1>
+    <h1>자리배치표 - 고급 탐색 </h1>
 
     <!-- 입력 영역 -->
     <div class="input-group">
@@ -151,17 +151,96 @@
     <div id="scoreArea"></div>
   </div>
 
-  <div class="footer">made by 20707 with GPT</div>
+  <div class="footer">made by 20707 with GPT - 개선됨</div>
 
   <!-- jsPDF (PDF 변환) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
+    // ----------------- 유틸 함수 -----------------
+    // Fisher-Yates 섞기
+    function shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+    }
+    // 문자열을 콤마 기준 배열로 변환
+    function parseList(str) {
+      if (!str) return [];
+      return str.split(',')
+        .map(x => x.trim())
+        .filter(x => x !== '');
+    }
+    // 배열 내 중복 확인
+    function hasDup(arr) {
+      return new Set(arr).size !== arr.length;
+    }
+    // PMX (Partially Mapped Crossover)
+    function pmxCrossover(parent1, parent2) {
+      const size = parent1.length;
+      let child = new Array(size).fill(null);
+      // 두 개의 교차 지점 선택
+      let start = Math.floor(Math.random() * size);
+      let end = Math.floor(Math.random() * size);
+      if (start > end) [start, end] = [end, start];
+      
+      // parent1의 구간 복사
+      for (let i = start; i <= end; i++) {
+        child[i] = parent1[i];
+      }
+      
+      // parent2의 구간 정보를 child에 매핑
+      for (let i = start; i <= end; i++) {
+        const gene = parent2[i];
+        if (!child.includes(gene)) {
+          let pos = i;
+          while (true) {
+            const geneFromP1 = parent1[pos];
+            const pos2 = parent2.indexOf(geneFromP1);
+            if (child[pos2] === null) {
+              child[pos2] = gene;
+              break;
+            } else {
+              pos = pos2;
+            }
+          }
+        }
+      }
+      
+      // 남은 자리를 parent2에서 채움
+      for (let i = 0; i < size; i++) {
+        if (child[i] === null) {
+          child[i] = parent2[i];
+        }
+      }
+      return child;
+    }
+    // 배열 기반의 swap mutation (순열 내 두 요소 교환)
+    function swapMutation(arr) {
+      const size = arr.length;
+      let i1 = Math.floor(Math.random() * size);
+      let i2 = Math.floor(Math.random() * size);
+      while (i1 === i2) {
+        i2 = Math.floor(Math.random() * size);
+      }
+      [arr[i1], arr[i2]] = [arr[i2], arr[i1]];
+    }
+    // mapping <-> 배열 간 변환 (순서: seats 배열 순서)
+    function arrayToMapping(arr, seats) {
+      const mapping = {};
+      for (let i = 0; i < arr.length; i++) {
+        mapping[seats[i].id] = arr[i];
+      }
+      return mapping;
+    }
+
+    // ----------------- 메인 앱 객체 -----------------
     const app = {
       seatMatrix: [],
       excludedSeats: new Set(),
       tdElements: {},
 
-      // 1) 좌석 생성
+      // 좌석 생성: 인원 수에 맞추어 각 행의 셀(좌석) 수를 정확히 할당
       init() {
         this.seatMatrix = [];
         this.excludedSeats.clear();
@@ -174,17 +253,23 @@
           alert(chk.msg);
           return;
         }
-
         const { numPeople, numRows } = chk;
-        const numCols = Math.ceil(numPeople / numRows);
+        // 각 행에 배분할 좌석 수 계산 (나머지 포함)
+        let seatsPerRow = [];
+        const base = Math.floor(numPeople / numRows);
+        const rem = numPeople % numRows;
+        for (let i = 0; i < numRows; i++) {
+          seatsPerRow.push(i < rem ? base + 1 : base);
+        }
 
-        // 테이블 만들기
+        // 테이블 생성 (교탁 포함)
+        const maxCols = Math.max(...seatsPerRow);
         let html = '<table>';
-        html += `<tr><td class="desk-td" colspan="${numCols}">교탁</td></tr>`;
+        html += `<tr><td class="desk-td" colspan="${maxCols}">교탁</td></tr>`;
         for (let r = 0; r < numRows; r++) {
           html += '<tr>';
-          const rowArr = [];
-          for (let c = 0; c < numCols; c++) {
+          let rowArr = [];
+          for (let c = 0; c < seatsPerRow[r]; c++) {
             const cellId = `r${r}c${c}`;
             rowArr.push(cellId);
             html += `<td id="${cellId}">-</td>`;
@@ -195,8 +280,8 @@
         html += '</table>';
         document.getElementById('gridArea').innerHTML = html;
 
-        // 클릭 핸들러
-        for (let r = 0; r < numRows; r++) {
+        // 각 좌석에 클릭 핸들러 등록 (제외 토글)
+        for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
             const td = document.getElementById(cid);
@@ -219,7 +304,7 @@
         }
       },
 
-      // 2) 고급 자리 배치
+      // 고급 자리 배치: 개선된 유전 알고리즘 적용
       assignSeatsAdvanced() {
         const chk = this.checkInputs();
         if (!chk.ok) {
@@ -230,278 +315,223 @@
           alert('먼저 [좌석 생성하기] 버튼을 눌러주세요.');
           return;
         }
-
         const { numPeople, frontArr, backArr, notPairs, popSize, generations } = chk;
 
-        // 사용 가능한 좌석
-        const seats = [];
+        // 제외되지 않은 좌석 수집
+        let availableSeats = [];
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
             if (!this.excludedSeats.has(cid)) {
-              seats.push({ row: r, col: c, id: cid });
+              availableSeats.push({ row: r, col: c, id: cid });
             }
           }
         }
-        if (seats.length < numPeople) {
+        if (availableSeats.length < numPeople) {
           alert('사용 가능한 자리보다 인원이 많습니다!');
           return;
         }
+        // 사용 좌석: availableSeats를 정렬한 후 상위 numPeople개를 사용
+        availableSeats.sort((a, b) => (a.row - b.row) || (a.col - b.col));
+        const seats = availableSeats.slice(0, numPeople);
 
         const startTime = performance.now();
 
-        // 사람(1~numPeople)
-        const peopleArr = Array.from({length:numPeople}, (_, i)=>(i+1).toString());
+        // 사람 배열 (문자열 번호)
+        const peopleArr = Array.from({ length: numPeople }, (_, i) => (i + 1).toString());
 
-        // 초기 population
+        // 초기 population 생성 (순열 배열과 mapping 저장)
         let population = [];
-        for (let i=0; i<popSize; i++){
-          population.push( this.createRandomArrangement(peopleArr, seats, frontArr, backArr) );
+        for (let i = 0; i < popSize; i++) {
+          let perm = [...peopleArr];
+          shuffle(perm);
+          let mapping = arrayToMapping(perm, seats);
+          population.push({ mapping, fitness: 0, perm });
         }
 
-        // 세대 반복
-        for (let g=0; g<generations; g++){
+        // 세대별 최적화 과정
+        for (let g = 0; g < generations; g++) {
           // 적합도 계산
-          for (let p of population){
-            p.fitness = this.calculateFitness(p.mapping,seats, frontArr, backArr, notPairs);
+          for (let p of population) {
+            p.fitness = this.calculateFitness(p.mapping, seats, frontArr, backArr, notPairs);
           }
-          // 큰 순 정렬
-          population.sort((a,b)=>b.fitness - a.fitness);
+          // 내림차순 정렬 (fitness가 높을수록 유리한 것으로 가정)
+          population.sort((a, b) => b.fitness - a.fitness);
+          
+          // 엘리트 보존: 상위 20% 그대로 복사
+          const eliteCount = Math.floor(popSize * 0.2);
+          const newPop = population.slice(0, eliteCount);
 
-          const half = Math.floor(popSize/2);
-          let newPop = population.slice(0, half);
-
-          while(newPop.length<popSize){
-            const i1=Math.floor(Math.random()*half);
-            const i2=Math.floor(Math.random()*half);
-            const child = this.crossover(population[i1], population[i2], seats);
-            if (Math.random()<0.2){
-              this.mutation(child,seats);
+          // 나머지 채우기: 토너먼트 선택 + PMX 교차 후 돌연변이
+          while (newPop.length < popSize) {
+            const parent1 = this.tournamentSelection(population);
+            const parent2 = this.tournamentSelection(population);
+            const childPerm = pmxCrossover(parent1.perm, parent2.perm);
+            if (Math.random() < 0.2) {
+              swapMutation(childPerm);
             }
-            child.fitness = this.calculateFitness(child.mapping,seats, frontArr, backArr, notPairs);
-            newPop.push(child);
+            const childMapping = arrayToMapping(childPerm, seats);
+            newPop.push({ mapping: childMapping, fitness: 0, perm: childPerm });
           }
-          population=newPop;
+          population = newPop;
         }
-        population.sort((a,b)=>b.fitness - a.fitness);
-        const best=population[0];
+        // 최적 개체 선택
+        population.sort((a, b) => b.fitness - a.fitness);
+        const best = population[0];
 
-        // 테이블 반영
-        for (let s of seats){
+        // 테이블 업데이트: 선택한 좌석에만 번호 표시
+        for (let s of seats) {
           const pid = best.mapping[s.id];
           this.tdElements[s.id].textContent = pid || '-';
         }
-
-        // 이행률
+        // 만족도 및 처리시간 출력
         const ratio = this.computeSatisfaction(best.mapping, seats, notPairs);
         const endTime = performance.now();
-        const sec = ((endTime - startTime)/1000).toFixed(2);
-
+        const sec = ((endTime - startTime) / 1000).toFixed(2);
         document.getElementById('scoreArea').textContent =
           `조건이행률: ${ratio.toFixed(2)}%, 처리시간: ${sec}초`;
       },
 
-      createRandomArrangement(peopleArr, seats, frontArr, backArr){
-        const tmp = [...peopleArr];
-        shuffle(tmp);
-        const mapping = {};
-        for (let i=0; i<tmp.length; i++){
-          mapping[seats[i].id] = tmp[i];
+      // 토너먼트 선택: 소규모 그룹에서 최고 개체 선택
+      tournamentSelection(population) {
+        const tournamentSize = 3;
+        let best = null;
+        for (let i = 0; i < tournamentSize; i++) {
+          const candidate = population[Math.floor(Math.random() * population.length)];
+          if (!best || candidate.fitness > best.fitness) {
+            best = candidate;
+          }
         }
-        return { mapping, fitness:0 };
+        return best;
       },
-      calculateFitness(mapping, seats, frontArr, backArr, notPairs){
+
+      // 적합도 함수: 싫은 쌍 거리를 벌점으로, 앞/뒤 선호 조건 가산
+      calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
-        // 싫은 쌍 거리
-        for (let [p1,p2] of notPairs){
-          let s1=null, s2=null;
-          for (let s of seats){
-            if(mapping[s.id]===p1)s1=s;
-            if(mapping[s.id]===p2)s2=s;
-            if(s1&&s2)break;
+        // 싫은 쌍 간 거리 벌점
+        for (let [p1, p2] of notPairs) {
+          let s1 = null, s2 = null;
+          for (let s of seats) {
+            if (mapping[s.id] === p1) s1 = s;
+            if (mapping[s.id] === p2) s2 = s;
+            if (s1 && s2) break;
           }
-          if(s1&&s2){
-            const d = Math.abs(s1.row-s2.row) + Math.abs(s1.col-s2.col);
-            sc += d*10;
+          if (s1 && s2) {
+            const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
+            sc += d * 10;
           }
         }
-        // 앞/뒤 선호
-        for (let s of seats){
+        // 앞자리, 뒷자리 선호 조건
+        for (let s of seats) {
           const pid = mapping[s.id];
-          if(!pid) continue;
-          if(frontArr.includes(pid)){
+          if (!pid) continue;
+          if (frontArr.includes(pid)) {
             sc += (5 - s.row);
           }
-          if(backArr.includes(pid)){
-            sc += (s.row*2);
+          if (backArr.includes(pid)) {
+            sc += (s.row * 2);
           }
         }
         return sc;
       },
-      crossover(p1, p2, seats){
-        const childMap = {};
-        const mid = Math.floor(seats.length/2);
-        for(let i=0;i<mid;i++){
-          childMap[seats[i].id] = p1.mapping[seats[i].id];
-        }
-        for(let i=mid;i<seats.length;i++){
-          childMap[seats[i].id] = p2.mapping[seats[i].id];
-        }
-        this.fixConflicts(childMap, seats);
-        return { mapping: childMap, fitness:0 };
-      },
-      mutation(chrom, seats){
-        const keys = Object.keys(chrom.mapping);
-        if(keys.length<2) return;
-        const i1 = Math.floor(Math.random()*keys.length);
-        const i2 = Math.floor(Math.random()*keys.length);
-        if(i1===i2) return;
-        const tmp = chrom.mapping[keys[i1]];
-        chrom.mapping[keys[i1]] = chrom.mapping[keys[i2]];
-        chrom.mapping[keys[i2]] = tmp;
-        this.fixConflicts(chrom.mapping, seats);
-      },
-      fixConflicts(mapping, seats){
-        // 중복/누락 방지
-        const assigned = [];
-        for(let sid in mapping){
-          assigned.push(mapping[sid]);
-        }
-        const used = new Set(), dups=[];
-        for(let p of assigned){
-          if(used.has(p)) dups.push(p);
-          else used.add(p);
-        }
-        const missing=[];
-        const total=assigned.length;
-        for(let i=1;i<=total;i++){
-          if(!used.has(""+i)) missing.push(""+i);
-        }
-        let idx=0;
-        for(let sid in mapping){
-          if(dups.includes(mapping[sid])){
-            if(idx<missing.length){
-              mapping[sid] = missing[idx++];
-            }
-          }
-        }
-      },
-      computeSatisfaction(mapping, seats, notPairs){
-        if(!notPairs.length) return 100;
-        const rowMax = this.seatMatrix.length;
-        const colMax = this.seatMatrix[0].length;
-        const maxDist = (rowMax-1) + (colMax-1);
 
-        let sumRatio=0, cnt=0;
-        for(let [a,b] of notPairs){
-          let s1=null,s2=null;
-          for(let s of seats){
-            if(mapping[s.id]===a)s1=s;
-            if(mapping[s.id]===b)s2=s;
-            if(s1&&s2)break;
+      // 만족도 계산: 싫은 쌍 사이의 거리 비율 평균 (없으면 100%로 처리)
+      computeSatisfaction(mapping, seats, notPairs) {
+        if (!notPairs.length) return 100;
+        const rowMax = this.seatMatrix.length;
+        const colMax = Math.max(...this.seatMatrix.map(row => row.length));
+        const maxDist = (rowMax - 1) + (colMax - 1);
+        let sumRatio = 0, cnt = 0;
+        for (let [a, b] of notPairs) {
+          let s1 = null, s2 = null;
+          for (let s of seats) {
+            if (mapping[s.id] === a) s1 = s;
+            if (mapping[s.id] === b) s2 = s;
+            if (s1 && s2) break;
           }
-          if(s1&&s2){
-            const d = Math.abs(s1.row-s2.row) + Math.abs(s1.col-s2.col);
-            sumRatio += (d/maxDist);
+          if (s1 && s2) {
+            const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
+            sumRatio += (d / maxDist);
             cnt++;
           }
         }
-        if(cnt===0)return 100;
-        return (sumRatio/cnt)*100;
+        if (cnt === 0) return 100;
+        return (sumRatio / cnt) * 100;
       },
 
-      downloadPDF(){
+      // PDF 다운로드 (jsPDF 사용)
+      downloadPDF() {
         const table = document.querySelector('#gridArea table');
-        if(!table){
+        if (!table) {
           alert('먼저 [좌석 생성하기] & [고급 자리 배치]를 해주세요.');
           return;
         }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        let y=10;
-        for(const row of table.rows){
-          let x=10;
-          for(const cell of row.cells){
+        let y = 10;
+        for (const row of table.rows) {
+          let x = 10;
+          for (const cell of row.cells) {
             doc.text(cell.textContent, x, y);
-            x+=20;
+            x += 20;
           }
-          y+=10;
+          y += 10;
         }
         doc.save('자리배치.pdf');
       },
 
-      // 기본 입력 체크
-      checkInputs(){
-        const np = parseInt(document.getElementById('numPeople').value,10);
-        const nr = parseInt(document.getElementById('numRows').value,10);
+      // 입력 값 체크 및 파싱
+      checkInputs() {
+        const np = parseInt(document.getElementById('numPeople').value, 10);
+        const nr = parseInt(document.getElementById('numRows').value, 10);
         const fp = document.getElementById('frontPref').value.trim();
         const bp = document.getElementById('backPref').value.trim();
         const nt = document.getElementById('notTogether').value.trim();
-        const popSz = parseInt(document.getElementById('popSize').value,10);
-        const gens = parseInt(document.getElementById('generations').value,10);
+        const popSz = parseInt(document.getElementById('popSize').value, 10);
+        const gens = parseInt(document.getElementById('generations').value, 10);
 
-        if(isNaN(np)||np<1)return{ok:false,msg:'인원 수를 1 이상으로'};
-        if(isNaN(nr)||nr<1)return{ok:false,msg:'줄 수(행)를 1 이상으로'};
-        if(isNaN(popSz)||popSz<2)return{ok:false,msg:'고급 탐색 수준은 2 이상으로'};
-        if(isNaN(gens)||gens<1)return{ok:false,msg:'최적화 단계는 1 이상으로'};
+        if (isNaN(np) || np < 1) return { ok: false, msg: '인원 수를 1 이상으로' };
+        if (isNaN(nr) || nr < 1) return { ok: false, msg: '줄(행) 수를 1 이상으로' };
+        if (isNaN(popSz) || popSz < 2) return { ok: false, msg: '고급 탐색 수준은 2 이상으로' };
+        if (isNaN(gens) || gens < 1) return { ok: false, msg: '최적화 단계는 1 이상으로' };
 
         const frontArr = parseList(fp);
-        const backArr  = parseList(bp);
-
-        if(hasDup(frontArr)) return {ok:false,msg:'앞자리 선호 중복있음'};
-        if(hasDup(backArr)) return {ok:false,msg:'뒷자리 선호 중복있음'};
-        for(let f of frontArr){
-          if(backArr.includes(f))return{ok:false,msg:`${f}가 앞뒤 선호 중복`};
+        const backArr = parseList(bp);
+        if (hasDup(frontArr)) return { ok: false, msg: '앞자리 선호 중 중복 있음' };
+        if (hasDup(backArr)) return { ok: false, msg: '뒷자리 선호 중 중복 있음' };
+        for (let f of frontArr) {
+          if (backArr.includes(f)) return { ok: false, msg: `${f}가 앞뒤 선호 중복` };
         }
-        for(let v of [...frontArr,...backArr]){
-          const x=parseInt(v,10);
-          if(x<1||x>np)return{ok:false,msg:`선호번호 ${v}가 인원수 범위 초과`};
+        for (let v of [...frontArr, ...backArr]) {
+          const x = parseInt(v, 10);
+          if (x < 1 || x > np) return { ok: false, msg: `선호번호 ${v}가 인원수 범위 초과` };
         }
-
-        let notPairs=[];
-        if(nt!==''){
-          const arr=nt.split('/');
-          for(let pair of arr){
-            const [a,b]=pair.split(',').map(x=>x.trim());
-            if(!a||!b)return{ok:false,msg:'같이 앉기싫은쌍 형식오류'};
-            if(a===b)return{ok:false,msg:`같이싫은쌍 중 같은번호 ${a}`};
-            const aa=parseInt(a,10), bb=parseInt(b,10);
-            if(aa<1||aa>np||bb<1||bb>np){
-              return{ok:false,msg:`쌍(${a},${b}) 범위초과`};
+        let notPairs = [];
+        if (nt !== '') {
+          const arr = nt.split('/');
+          for (let pair of arr) {
+            const [a, b] = pair.split(',').map(x => x.trim());
+            if (!a || !b) return { ok: false, msg: '같이 앉기 싫은 쌍 형식 오류' };
+            if (a === b) return { ok: false, msg: `같이 앉기 싫은 쌍 중 같은 번호 ${a}` };
+            const aa = parseInt(a, 10), bb = parseInt(b, 10);
+            if (aa < 1 || aa > np || bb < 1 || bb > np) {
+              return { ok: false, msg: `쌍 (${a},${b}) 범위 초과` };
             }
-            notPairs.push([a,b]);
+            notPairs.push([a, b]);
           }
         }
-
-        return{
-          ok:true,
-          numPeople:np,
-          numRows:nr,
+        return {
+          ok: true,
+          numPeople: np,
+          numRows: nr,
           frontArr,
           backArr,
           notPairs,
-          popSize:popSz,
-          generations:gens
+          popSize: popSz,
+          generations: gens
         };
       }
     };
-
-    // 유틸
-    function parseList(str){
-      if(!str) return [];
-      return str.split(',')
-        .map(x=>x.trim())
-        .filter(x=>x!=='');
-    }
-    function hasDup(arr){
-      return new Set(arr).size!==arr.length;
-    }
-    function shuffle(a){
-      for(let i=a.length-1;i>0;i--){
-        const j=Math.floor(Math.random()*(i+1));
-        [a[i],a[j]]=[a[j],a[i]];
-      }
-    }
   </script>
 </body>
 </html>
