@@ -167,7 +167,7 @@
 
     <!-- 표가 들어갈 영역 -->
     <div id="gridArea"></div>
-    <!-- 조건 이행률(정확도) 및 처리시간 표시 -->
+    <!-- 조건 이행률 및 처리시간 표시 -->
     <div id="scoreArea"></div>
   </div>
 
@@ -247,6 +247,7 @@
       excludedSeats: new Set(),
       tdElements: {},
 
+      // 좌석 생성: 원래와 같이 전체 직사각형 그리드를 생성하여 수동으로 제외 가능하도록 함
       init() {
         this.seatMatrix = [];
         this.excludedSeats.clear();
@@ -260,21 +261,14 @@
           return;
         }
         const { numPeople, numRows } = chk;
-        // 각 행에 배분할 좌석 개수 계산 (나머지 포함)
-        let seatsPerRow = [];
-        const base = Math.floor(numPeople / numRows);
-        const rem = numPeople % numRows;
-        for (let i = 0; i < numRows; i++) {
-          seatsPerRow.push(i < rem ? base + 1 : base);
-        }
-
-        const maxCols = Math.max(...seatsPerRow);
+        // 직사각형 배열: 열 수 = ceil(numPeople/numRows)
+        const numCols = Math.ceil(numPeople / numRows);
         let html = '<table>';
-        html += `<tr><td class="desk-td" colspan="${maxCols}">교탁</td></tr>`;
+        html += `<tr><td class="desk-td" colspan="${numCols}">교탁</td></tr>`;
         for (let r = 0; r < numRows; r++) {
           html += '<tr>';
           let rowArr = [];
-          for (let c = 0; c < seatsPerRow[r]; c++) {
+          for (let c = 0; c < numCols; c++) {
             const cellId = `r${r}c${c}`;
             rowArr.push(cellId);
             html += `<td id="${cellId}">-</td>`;
@@ -285,6 +279,7 @@
         html += '</table>';
         document.getElementById('gridArea').innerHTML = html;
 
+        // 클릭 시 해당 좌석을 수동으로 제외(토글)
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
@@ -308,7 +303,7 @@
         }
       },
 
-      // 자리 배정을 진행하는 함수 (비동기로 처리하여 로딩 바 업데이트)
+      // 자리 배정: 계산 중 진행률을 로딩 바로 표시하고, 사용 가능한 좌석 수가 인원 수와 일치하지 않으면 경고 후 실행 중단
       async assignSeatsAdvanced() {
         const chk = this.checkInputs();
         if (!chk.ok) {
@@ -371,7 +366,6 @@
             newPop.push({ mapping: childMapping, fitness: 0, perm: childPerm });
           }
           population = newPop;
-          // 로딩바 업데이트: 진행률 (%) 표시
           loadingBar.style.width = ((g + 1) / generations * 100) + '%';
           await new Promise(resolve => setTimeout(resolve, 0));
         }
@@ -387,7 +381,6 @@
         const sec = ((endTime - startTime) / 1000).toFixed(2);
         document.getElementById('scoreArea').textContent =
           `조건이행률: ${ratio.toFixed(2)}%, 처리시간: ${sec}초`;
-        // 로딩바 숨기기
         loadingContainer.style.display = 'none';
       },
 
@@ -403,7 +396,7 @@
         return best;
       },
 
-      // 앞자리 선호자에 대해, 앞쪽(행 번호가 낮은 자리)에서 더 큰 보상을 적용하도록 수정
+      // 앞자리 선호자는 앞쪽 좌석(행 번호가 낮을수록)일 경우 높은 보상을 받도록 함
       calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
         for (let [p1, p2] of notPairs) {
@@ -421,7 +414,6 @@
         for (let s of seats) {
           const pid = mapping[s.id];
           if (!pid) continue;
-          // 앞자리 선호자는 앞쪽(행 번호가 낮은)일수록 더 높은 보상을 받음
           if (frontArr.includes(pid)) {
             sc += ((this.seatMatrix.length - s.row) * 10);
           }
