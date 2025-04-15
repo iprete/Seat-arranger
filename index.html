@@ -73,76 +73,81 @@
     function parseList(str){if(!str)return[];return str.split(',').map(x=>x.trim()).filter(x=>x!=='')}
     function hasDup(arr){return new Set(arr).size!==arr.length}
     function pmxCrossover(p1,p2){
-      const size=p1.length;
-      let child=new Array(size).fill(null);
-      let start=Math.floor(Math.random()*size);
-      let end=Math.floor(Math.random()*size);
-      if(start>end)[start,end]=[end,start];
-      for(let i=start;i<=end;i++){child[i]=p1[i]}
-      for(let i=start;i<=end;i++){
-        const gene=p2[i];
+      const size = p1.length;
+      let child = new Array(size).fill(null);
+      let start = Math.floor(Math.random()*size);
+      let end = Math.floor(Math.random()*size);
+      if(start > end) [start, end] = [end, start];
+      for(let i = start; i <= end; i++){
+        child[i] = p1[i];
+      }
+      for(let i = start; i <= end; i++){
+        const gene = p2[i];
         if(!child.includes(gene)){
-          let pos=i;
+          let pos = i;
           while(true){
-            const geneFromP1=p1[pos];
-            const pos2=p2.indexOf(geneFromP1);
-            if(child[pos2]===null){child[pos2]=gene;break}else{pos=pos2}
+            const geneFromP1 = p1[pos];
+            const pos2 = p2.indexOf(geneFromP1);
+            if(child[pos2] === null){ child[pos2] = gene; break; }
+            else { pos = pos2; }
           }
         }
       }
-      for(let i=0;i<size;i++){if(child[i]===null){child[i]=p2[i]}}
+      for(let i = 0; i < size; i++){
+        if(child[i] === null){ child[i] = p2[i]; }
+      }
       return child;
     }
     function swapMutation(a){
-      const size=a.length;
-      let i1=Math.floor(Math.random()*size);
-      let i2=Math.floor(Math.random()*size);
-      while(i1===i2){i2=Math.floor(Math.random()*size)}
-      [a[i1],a[i2]]=[a[i2],a[i1]];
+      const size = a.length;
+      let i1 = Math.floor(Math.random()*size);
+      let i2 = Math.floor(Math.random()*size);
+      while(i1 === i2){ i2 = Math.floor(Math.random()*size); }
+      [a[i1], a[i2]] = [a[i2], a[i1]];
     }
-    function arrayToMapping(arr,seats){
-      const mapping={};
-      for(let i=0;i<arr.length;i++){
-        mapping[seats[i].id]=arr[i];
+    function arrayToMapping(arr, seats){
+      const mapping = {};
+      for(let i = 0; i < arr.length; i++){
+        mapping[seats[i].id] = arr[i];
       }
       return mapping;
     }
-    const app={
-      seatMatrix:[],
-      excludedSeats:new Set(),
-      tdElements:{},
-      isProcessing:false,
+    const app = {
+      seatMatrix: [],
+      excludedSeats: new Set(),
+      tdElements: {},
+      isProcessing: false,
       init(){
-        this.seatMatrix=[];
+        this.seatMatrix = [];
         this.excludedSeats.clear();
-        this.tdElements={};
-        document.getElementById('gridArea').innerHTML='';
-        document.getElementById('scoreArea').textContent='';
-        document.getElementById('progressContainer').style.display='none';
-        const chk=this.checkInputs();
-        if(!chk.ok){alert(chk.msg);return}
-        const {numPeople,numRows}=chk;
-        const numCols=Math.ceil(numPeople/numRows);
-        let html='<table>';
-        html+=`<tr><td class="desk-td" colspan="${numCols}">교탁</td></tr>`;
-        for(let r=0;r<numRows;r++){
-          html+='<tr>';
-          let rowArr=[];
-          for(let c=0;c<numCols;c++){
-            const cellId=`r${r}c${c}`;
+        this.tdElements = {};
+        document.getElementById('gridArea').innerHTML = '';
+        document.getElementById('scoreArea').textContent = '';
+        document.getElementById('progressContainer').style.display = 'none';
+        const chk = this.checkInputs();
+        if(!chk.ok){ alert(chk.msg); return; }
+        const { numPeople, numRows } = chk;
+        const numCols = Math.ceil(numPeople/numRows);
+        let html = '<table>';
+        html += `<tr><td class="desk-td" colspan="${numCols}">교탁</td></tr>`;
+        for(let r = 0; r < numRows; r++){
+          html += '<tr>';
+          let rowArr = [];
+          for(let c = 0; c < numCols; c++){
+            const cellId = `r${r}c${c}`;
             rowArr.push(cellId);
-            html+=`<td id="${cellId}">-</td>`;
+            html += `<td id="${cellId}">-</td>`;
           }
           this.seatMatrix.push(rowArr);
-          html+='</tr>';
+          html += '</tr>';
         }
-        html+='</table>';
-        document.getElementById('gridArea').innerHTML=html;
-        for(let r=0;r<this.seatMatrix.length;r++){
-          for(let c=0;c<this.seatMatrix[r].length;c++){
-            const cid=this.seatMatrix[r][c];
-            const td=document.getElementById(cid);
-            if(td){td.onclick=()=>this.toggleSeat(cid);this.tdElements[cid]=td}
+        html += '</table>';
+        document.getElementById('gridArea').innerHTML = html;
+        for(let r = 0; r < this.seatMatrix.length; r++){
+          for(let c = 0; c < this.seatMatrix[r].length; c++){
+            const cid = this.seatMatrix[r][c];
+            const td = document.getElementById(cid);
+            if(td){ td.onclick = () => this.toggleSeat(cid); this.tdElements[cid] = td; }
           }
         }
       },
@@ -151,22 +156,24 @@
         if(this.excludedSeats.has(cellId)){
           this.excludedSeats.delete(cellId);
           this.tdElements[cellId].classList.remove('excluded');
-          this.tdElements[cellId].textContent='-';
+          // 복원: 셀의 기본 텍스트는 "-"로 복원
+          this.tdElements[cellId].textContent = "-";
         } else {
           this.excludedSeats.add(cellId);
           this.tdElements[cellId].classList.add('excluded');
-          this.tdElements[cellId].textContent='';
+          // 제외된 셀은 빈 문자열로 표시
+          this.tdElements[cellId].textContent = "";
         }
       },
-      // 로컬 탐색(힐 클라이밍)으로 최고 개체 개선
+      // 로컬 탐색 (힐 클라이밍)을 통한 해 개선
       refineSolution(mapping, seats, frontArr, backArr, notGroups) {
         let currentMapping = JSON.parse(JSON.stringify(mapping));
         let currentFitness = this.calculateFitness(currentMapping, seats, frontArr, backArr, notGroups);
         let improvement = true, iterations = 0;
         while(improvement && iterations < 1000) {
           improvement = false;
-          for(let i=0; i<seats.length; i++){
-            for(let j=i+1; j<seats.length; j++){
+          for(let i = 0; i < seats.length; i++){
+            for(let j = i+1; j < seats.length; j++){
               let newMapping = JSON.parse(JSON.stringify(currentMapping));
               let temp = newMapping[seats[i].id];
               newMapping[seats[i].id] = newMapping[seats[j].id];
@@ -186,11 +193,11 @@
         return currentMapping;
       },
       async assignSeatsAdvanced(){
-        if(this.isProcessing){alert("자리 배치 중입니다. 잠시 기다려 주세요.");return}
+        if(this.isProcessing){ alert("자리 배치 중입니다. 잠시 기다려 주세요."); return; }
         this.isProcessing = true;
         const chk = this.checkInputs();
-        if(!chk.ok){alert(chk.msg); this.isProcessing = false; return}
-        if(!this.seatMatrix.length){alert('먼저 [좌석 생성하기] 버튼을 눌러주세요.');this.isProcessing = false; return}
+        if(!chk.ok){ alert(chk.msg); this.isProcessing = false; return; }
+        if(!this.seatMatrix.length){ alert('먼저 [좌석 생성하기] 버튼을 눌러주세요.'); this.isProcessing = false; return; }
         const { numPeople, frontArr, backArr, notGroups, popSize, generations } = chk;
         let availableSeats = [];
         for(let r = 0; r < this.seatMatrix.length; r++){
@@ -252,15 +259,23 @@
         }
         population.sort((a,b) => b.fitness - a.fitness);
         let best = population[0];
-        // 로컬 탐색(Refinement) 추가
         best.mapping = this.refineSolution(best.mapping, seats, frontArr, backArr, notGroups);
         for(let s of seats){
           const pid = best.mapping[s.id];
-          this.tdElements[s.id].textContent = pid || '-';
+          this.tdElements[s.id].textContent = pid || "-";
+        }
+        // 모든 그리드 셀 중, 제외된 셀은 최종적으로 "-"로 표시
+        for(let r = 0; r < this.seatMatrix.length; r++){
+          for(let c = 0; c < this.seatMatrix[r].length; c++){
+            const cid = this.seatMatrix[r][c];
+            if(this.excludedSeats.has(cid)){
+              this.tdElements[cid].textContent = "-";
+            }
+          }
         }
         const ratio = this.computeSatisfaction(best.mapping, seats, notGroups);
         const endTime = performance.now();
-        const sec = ((endTime - startTime) / 1000).toFixed(2);
+        const sec = ((endTime - startTime)/1000).toFixed(2);
         document.getElementById('scoreArea').innerHTML = `조건이행률: ${ratio.toFixed(2)}%, 처리시간: ${sec}초`;
         this.isProcessing = false;
       },
@@ -269,7 +284,9 @@
         let best = null;
         for(let i = 0; i < tournamentSize; i++){
           const candidate = population[Math.floor(Math.random() * population.length)];
-          if(!best || candidate.fitness > best.fitness){ best = candidate; }
+          if(!best || candidate.fitness > best.fitness){
+            best = candidate;
+          }
         }
         return best;
       },
@@ -288,7 +305,7 @@
               if(s1 && s2){
                 let dR = Math.abs(s1.row - s2.row);
                 let dC = Math.abs(s1.col - s2.col);
-                let pairScore = (Math.min(dR, 3)/3) * (Math.min(dC, 3)/3) * 100;
+                let pairScore = (Math.min(dR,3)/3) * (Math.min(dC,3)/3) * 100;
                 sc += pairScore;
               }
             }
@@ -298,8 +315,7 @@
           const pid = mapping[s.id];
           if(!pid) continue;
           if(frontArr.includes(pid)){
-            if(s.row < 3){ sc += (5 - s.row)*10; }
-            else { sc -= 10*(s.row-2); }
+            if(s.row < 3){ sc += (5 - s.row)*10; } else { sc -= 10*(s.row-2); }
           }
           if(backArr.includes(pid)){ sc += (s.row*2); }
         }
@@ -321,7 +337,7 @@
               if(s1 && s2){
                 let dR = Math.abs(s1.row - s2.row);
                 let dC = Math.abs(s1.col - s2.col);
-                let pairScore = (Math.min(dR, 3)/3) * (Math.min(dC, 3)/3) * 100;
+                let pairScore = (Math.min(dR,3)/3) * (Math.min(dC,3)/3) * 100;
                 sum += pairScore;
                 count++;
               }
@@ -334,7 +350,7 @@
       downloadPDF(){
         const table = document.querySelector('#gridArea table');
         if(!table){ alert('먼저 [좌석 생성하기] & [고급 자리 배치]를 해주세요.'); return; }
-        const { jsPDF } = window.jspdf;
+        const {jsPDF} = window.jspdf;
         const doc = new jsPDF();
         let y = 10;
         for(const row of table.rows){
@@ -357,7 +373,7 @@
         const popSz = parseInt(document.getElementById('popSize').value, 10);
         const gens = parseInt(document.getElementById('generations').value, 10);
         if(isNaN(np) || np < 1) return {ok:false, msg:'인원 수를 1 이상으로'};
-        if(isNaN(nr) || nr < 1) return {ok:false, msg:'줄(행) 수를 1 이상으로'};
+        if(isNaN(nr) || nr < 1) return {ok:false, msg:'행의 수를 1 이상으로'};
         if(isNaN(popSz) || popSz < 2) return {ok:false, msg:'고급 탐색 수준은 2 이상으로'};
         if(isNaN(gens) || gens < 1) return {ok:false, msg:'최적화 단계는 1 이상으로'};
         const frontArr = parseList(fp);
@@ -373,7 +389,7 @@
         if(nt !== ''){
           let arr = nt.split('/');
           for(let groupStr of arr){
-            let group = groupStr.split(',').map(x => x.trim()).filter(x => x !== '');
+            let group = groupStr.split(',').map(x=>x.trim()).filter(x=>x!=='');
             if(group.length < 2) return {ok:false, msg:'같이 앉기 싫은 그룹은 최소 2명 이상이어야 함'};
             if(hasDup(group)) return {ok:false, msg:'같이 앉기 싫은 그룹 내 중복 있음'};
             for(let vv of group){
