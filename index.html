@@ -20,8 +20,8 @@
     td.desk-td{background-color:#ffe67e;color:#444;font-weight:bold;cursor:default;width:auto}
     .footer{text-align:center;font-size:12px;color:#777;margin-top:40px;margin-bottom:10px}
     #scoreArea{text-align:center;margin-top:10px;font-weight:bold;color:#333}
-    #progressContainer{width:100%;background:#ddd; margin:20px 0; border-radius:5px; overflow:hidden;}
-    #progressBar{width:0%;height:20px;background:#4CAF50;color:white;text-align:center;line-height:20px;font-size:14px;}
+    #progressContainer{width:100%;background:#ddd; border-radius:5px; margin:20px 0; height:20px; display:block;}
+    #progressBar{width:0%;height:20px;background:#4CAF50;color:white;text-align:center;line-height:20px;font-size:14px; border-radius:5px;}
   </style>
 </head>
 <body>
@@ -61,6 +61,9 @@
       <button onclick="app.downloadPDF()">PDF 저장</button>
     </div>
     <div id="gridArea"></div>
+    <div id="progressContainer" style="display:none;">
+      <div id="progressBar">0%</div>
+    </div>
     <div id="scoreArea"></div>
   </div>
   <div class="footer">made by 20707 with GPT</div>
@@ -69,9 +72,41 @@
     function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
     function parseList(str){if(!str)return[];return str.split(',').map(x=>x.trim()).filter(x=>x!=='')}
     function hasDup(arr){return new Set(arr).size!==arr.length}
-    function pmxCrossover(p1,p2){const size=p1.length;let child=new Array(size).fill(null);let start=Math.floor(Math.random()*size);let end=Math.floor(Math.random()*size);if(start>end)[start,end]=[end,start];for(let i=start;i<=end;i++){child[i]=p1[i]}for(let i=start;i<=end;i++){const gene=p2[i];if(!child.includes(gene)){let pos=i;while(true){const geneFromP1=p1[pos];const pos2=p2.indexOf(geneFromP1);if(child[pos2]===null){child[pos2]=gene;break}else{pos=pos2}}}}for(let i=0;i<size;i++){if(child[i]===null){child[i]=p2[i]}}return child}
-    function swapMutation(a){const size=a.length;let i1=Math.floor(Math.random()*size);let i2=Math.floor(Math.random()*size);while(i1===i2){i2=Math.floor(Math.random()*size)}[a[i1],a[i2]]=[a[i2],a[i1]]}
-    function arrayToMapping(arr,seats){const mapping={};for(let i=0;i<arr.length;i++){mapping[seats[i].id]=arr[i]}return mapping}
+    function pmxCrossover(p1,p2){
+      const size=p1.length;
+      let child=new Array(size).fill(null);
+      let start=Math.floor(Math.random()*size);
+      let end=Math.floor(Math.random()*size);
+      if(start>end)[start,end]=[end,start];
+      for(let i=start;i<=end;i++){child[i]=p1[i]}
+      for(let i=start;i<=end;i++){
+        const gene=p2[i];
+        if(!child.includes(gene)){
+          let pos=i;
+          while(true){
+            const geneFromP1=p1[pos];
+            const pos2=p2.indexOf(geneFromP1);
+            if(child[pos2]===null){child[pos2]=gene;break}else{pos=pos2}
+          }
+        }
+      }
+      for(let i=0;i<size;i++){if(child[i]===null){child[i]=p2[i]}}
+      return child;
+    }
+    function swapMutation(a){
+      const size=a.length;
+      let i1=Math.floor(Math.random()*size);
+      let i2=Math.floor(Math.random()*size);
+      while(i1===i2){i2=Math.floor(Math.random()*size)}
+      [a[i1],a[i2]]=[a[i2],a[i1]];
+    }
+    function arrayToMapping(arr,seats){
+      const mapping={};
+      for(let i=0;i<arr.length;i++){
+        mapping[seats[i].id]=arr[i];
+      }
+      return mapping;
+    }
     const app={
       seatMatrix:[],
       excludedSeats:new Set(),
@@ -83,6 +118,7 @@
         this.tdElements={};
         document.getElementById('gridArea').innerHTML='';
         document.getElementById('scoreArea').textContent='';
+        document.getElementById('progressContainer').style.display='none';
         const chk=this.checkInputs();
         if(!chk.ok){alert(chk.msg);return}
         const {numPeople,numRows}=chk;
@@ -150,17 +186,35 @@
           let mapping=arrayToMapping(perm,seats);
           population.push({mapping,fitness:0,perm});
         }
-        document.getElementById('scoreArea').innerHTML='<div id="progressContainer"><div id="progressBar">0%</div></div>';
+        // 로딩바 보이기
+        document.getElementById('progressContainer').style.display='block';
+        document.getElementById('progressBar').style.width="0%";
+        document.getElementById('progressBar').textContent="0%";
+        let bestFitnessOld=-Infinity, stagnantCount=0, mutationProbability=0.2;
         for(let g=0;g<generations;g++){
-          for(let p of population){p.fitness=this.calculateFitness(p.mapping,seats,frontArr,backArr,notGroups)}
+          for(let p of population){
+            p.fitness=this.calculateFitness(p.mapping,seats,frontArr,backArr,notGroups);
+          }
           population.sort((a,b)=>b.fitness-a.fitness);
+          if(population[0].fitness>bestFitnessOld){
+            bestFitnessOld=population[0].fitness;
+            stagnantCount=0;
+            mutationProbability=0.2;
+          } else {
+            stagnantCount++;
+            if(stagnantCount>=5){
+              mutationProbability=0.3;
+            }
+          }
           const eliteCount=Math.floor(popSize*0.2);
           const newPop=population.slice(0,eliteCount);
           while(newPop.length<popSize){
             const parent1=this.tournamentSelection(population);
             const parent2=this.tournamentSelection(population);
             const childPerm=pmxCrossover(parent1.perm,parent2.perm);
-            if(Math.random()<0.2){swapMutation(childPerm)}
+            if(Math.random()<mutationProbability){
+              swapMutation(childPerm);
+            }
             const childMapping=arrayToMapping(childPerm,seats);
             newPop.push({mapping:childMapping,fitness:0,perm:childPerm});
           }
@@ -197,7 +251,7 @@
           for(let i=0;i<group.length;i++){
             for(let j=i+1;j<group.length;j++){
               let p1=group[i], p2=group[j];
-              let s1=null, s2=null;
+              let s1=null,s2=null;
               for(let s of seats){
                 if(mapping[s.id]===p1)s1=s;
                 if(mapping[s.id]===p2)s2=s;
@@ -227,7 +281,7 @@
           for(let i=0;i<group.length;i++){
             for(let j=i+1;j<group.length;j++){
               let p1=group[i], p2=group[j];
-              let s1=null, s2=null;
+              let s1=null,s2=null;
               for(let s of seats){
                 if(mapping[s.id]===p1)s1=s;
                 if(mapping[s.id]===p2)s2=s;
