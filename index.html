@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>자리배치표 - 고급 탐색</title>
-  <!-- 외부 CSS 파일 연결 -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -184,7 +183,7 @@
         html += '</table>';
         document.getElementById('gridArea').innerHTML = html;
     
-        // 수동 좌석 클릭 시 제외/복원
+        // 수동 좌석 클릭 시 제외/복원 처리 (제외할 때 안의 숫자를 '-'로 변경)
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
@@ -205,6 +204,8 @@
         } else {
           this.excludedSeats.add(cellId);
           this.tdElements[cellId].classList.add('excluded');
+          // 수동 삭제 시 해당 셀에 있는 숫자를 '-'로 변경
+          this.tdElements[cellId].textContent = '-';
         }
       },
     
@@ -311,7 +312,7 @@
           const pid = best.mapping[s.id];
           this.tdElements[s.id].textContent = pid || '-';
         }
-        // 조건 이행률: 각 쌍의 d를 최대 거리*2/3 기준으로 평가
+        // 조건 이행률: 각 쌍의 d를 최대거리×2/3 기준으로 평가
         if (!notPairs.length) {
           document.getElementById('scoreArea').textContent = '조건이행률: 100%, 처리시간: ' + (((performance.now() - startTime) / 1000).toFixed(2)) + '초';
         } else {
@@ -357,7 +358,7 @@
         return best;
       },
     
-      // 앞자리 선호 보상: 교탁에 가까울수록(행 번호가 낮을수록) 높은 보상 부여
+      // 앞자리 선호 보상: 교탁에 가까울수록 (행 번호가 낮을수록) 높은 보상 부여
       calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
         if (notPairs.length > 0) {
@@ -395,7 +396,7 @@
         return sc;
       },
     
-      // 만족도 계산: 각 쌍의 d를 최대 거리로 나눈 후 평균×100
+      // 만족도 계산: 각 쌍의 d를 최대거리로 나눈 후 평균×100
       computeSatisfaction(mapping, seats, notPairs) {
         if (!notPairs.length) return 100;
         const rowMax = this.seatMatrix.length;
