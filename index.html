@@ -67,13 +67,14 @@
     function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
     function parseList(str){if(!str)return[];return str.split(',').map(x=>x.trim()).filter(x=>x!=='')}
     function hasDup(arr){return new Set(arr).size!==arr.length}
-    function pmxCrossover(parent1,parent2){const size=parent1.length;let child=new Array(size).fill(null);let start=Math.floor(Math.random()*size);let end=Math.floor(Math.random()*size);if(start>end)[start,end]=[end,start];for(let i=start;i<=end;i++){child[i]=parent1[i]}for(let i=start;i<=end;i++){const gene=parent2[i];if(!child.includes(gene)){let pos=i;while(true){const geneFromP1=parent1[pos];const pos2=parent2.indexOf(geneFromP1);if(child[pos2]===null){child[pos2]=gene;break}else{pos=pos2}}}}for(let i=0;i<size;i++){if(child[i]===null){child[i]=parent2[i]}}return child}
-    function swapMutation(arr){const size=arr.length;let i1=Math.floor(Math.random()*size);let i2=Math.floor(Math.random()*size);while(i1===i2){i2=Math.floor(Math.random()*size)}[arr[i1],arr[i2]]=[arr[i2],arr[i1]]}
+    function pmxCrossover(p1,p2){const size=p1.length;let child=new Array(size).fill(null);let start=Math.floor(Math.random()*size);let end=Math.floor(Math.random()*size);if(start>end)[start,end]=[end,start];for(let i=start;i<=end;i++){child[i]=p1[i]}for(let i=start;i<=end;i++){const gene=p2[i];if(!child.includes(gene)){let pos=i;while(true){const geneFromP1=p1[pos];const pos2=p2.indexOf(geneFromP1);if(child[pos2]===null){child[pos2]=gene;break}else{pos=pos2}}}}for(let i=0;i<size;i++){if(child[i]===null){child[i]=p2[i]}}return child}
+    function swapMutation(a){const size=a.length;let i1=Math.floor(Math.random()*size);let i2=Math.floor(Math.random()*size);while(i1===i2){i2=Math.floor(Math.random()*size)}[a[i1],a[i2]]=[a[i2],a[i1]]}
     function arrayToMapping(arr,seats){const mapping={};for(let i=0;i<arr.length;i++){mapping[seats[i].id]=arr[i]}return mapping}
     const app={
       seatMatrix:[],
       excludedSeats:new Set(),
       tdElements:{},
+      isProcessing:false,
       init(){
         this.seatMatrix=[];
         this.excludedSeats.clear();
@@ -117,10 +118,12 @@
           this.tdElements[cellId].classList.add('excluded');
         }
       },
-      assignSeatsAdvanced(){
+      async assignSeatsAdvanced(){
+        if(this.isProcessing){alert("자리 배치 중입니다. 잠시 기다려 주세요.");return}
+        this.isProcessing=true;
         const chk=this.checkInputs();
-        if(!chk.ok){alert(chk.msg);return}
-        if(!this.seatMatrix.length){alert('먼저 [좌석 생성하기] 버튼을 눌러주세요.');return}
+        if(!chk.ok){alert(chk.msg);this.isProcessing=false;return}
+        if(!this.seatMatrix.length){alert('먼저 [좌석 생성하기] 버튼을 눌러주세요.');this.isProcessing=false;return}
         const {numPeople,frontArr,backArr,notGroups,popSize,generations}=chk;
         let availableSeats=[];
         for(let r=0;r<this.seatMatrix.length;r++){
@@ -131,6 +134,7 @@
         }
         if(availableSeats.length!==numPeople){
           alert(`현재 제외되지 않은 좌석은 ${availableSeats.length}개입니다. 인원 수 ${numPeople}과 일치해야 합니다.`);
+          this.isProcessing=false;
           return;
         }
         availableSeats.sort((a,b)=>(a.row-b.row)||(a.col-b.col));
@@ -144,10 +148,9 @@
           let mapping=arrayToMapping(perm,seats);
           population.push({mapping,fitness:0,perm});
         }
+        document.getElementById('scoreArea').innerHTML=`<div id="progressContainer" style="width:100%;background:#ddd;"><div id="progressBar" style="width:0%;height:20px;background:#4CAF50;color:white;text-align:center;"></div></div>`;
         for(let g=0;g<generations;g++){
-          for(let p of population){
-            p.fitness=this.calculateFitness(p.mapping,seats,frontArr,backArr,notGroups);
-          }
+          for(let p of population){p.fitness=this.calculateFitness(p.mapping,seats,frontArr,backArr,notGroups)}
           population.sort((a,b)=>b.fitness-a.fitness);
           const eliteCount=Math.floor(popSize*0.2);
           const newPop=population.slice(0,eliteCount);
@@ -160,6 +163,10 @@
             newPop.push({mapping:childMapping,fitness:0,perm:childPerm});
           }
           population=newPop;
+          let progress=Math.floor(((g+1)/generations)*100);
+          document.getElementById('progressBar').style.width=progress+"%";
+          document.getElementById('progressBar').textContent=progress+"%";
+          await new Promise(resolve=>setTimeout(resolve,0));
         }
         population.sort((a,b)=>b.fitness-a.fitness);
         const best=population[0];
@@ -170,7 +177,8 @@
         const ratio=this.computeSatisfaction(best.mapping,seats,notGroups);
         const endTime=performance.now();
         const sec=((endTime-startTime)/1000).toFixed(2);
-        document.getElementById('scoreArea').textContent=`조건이행률: ${ratio.toFixed(2)}%, 처리시간: ${sec}초`;
+        document.getElementById('scoreArea').innerHTML=`조건이행률: ${ratio.toFixed(2)}%, 처리시간: ${sec}초`;
+        this.isProcessing=false;
       },
       tournamentSelection(population){
         const tournamentSize=3;
@@ -186,17 +194,14 @@
         for(let group of notGroups){
           for(let i=0;i<group.length;i++){
             for(let j=i+1;j<group.length;j++){
-              let p1=group[i],p2=group[j];
-              let s1=null,s2=null;
+              let p1=group[i], p2=group[j];
+              let s1=null, s2=null;
               for(let s of seats){
                 if(mapping[s.id]===p1)s1=s;
                 if(mapping[s.id]===p2)s2=s;
                 if(s1&&s2)break;
               }
-              if(s1&&s2){
-                let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col);
-                sc+=d*10;
-              }
+              if(s1&&s2){let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col);sc+=d*10}
             }
           }
         }
@@ -215,22 +220,18 @@
         const rowMax=this.seatMatrix.length;
         const colMax=Math.max(...this.seatMatrix.map(row=>row.length));
         const maxDist=(rowMax-1)+(colMax-1);
-        let sumRatio=0,cnt=0;
+        let sumRatio=0, cnt=0;
         for(let group of notGroups){
           for(let i=0;i<group.length;i++){
             for(let j=i+1;j<group.length;j++){
-              let p1=group[i],p2=group[j];
-              let s1=null,s2=null;
+              let p1=group[i], p2=group[j];
+              let s1=null, s2=null;
               for(let s of seats){
                 if(mapping[s.id]===p1)s1=s;
                 if(mapping[s.id]===p2)s2=s;
                 if(s1&&s2)break;
               }
-              if(s1&&s2){
-                let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col);
-                sumRatio+=(d/maxDist);
-                cnt++;
-              }
+              if(s1&&s2){let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col);sumRatio+=(d/maxDist);cnt++}
             }
           }
         }
@@ -245,10 +246,7 @@
         let y=10;
         for(const row of table.rows){
           let x=10;
-          for(const cell of row.cells){
-            doc.text(cell.textContent,x,y);
-            x+=20;
-          }
+          for(const cell of row.cells){doc.text(cell.textContent,x,y);x+=20}
           y+=10;
         }
         doc.save('자리배치.pdf');
