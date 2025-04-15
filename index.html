@@ -149,9 +149,8 @@
       seatMatrix: [],
       excludedSeats: new Set(),
       tdElements: {},
-      isAssigning: false,  // 계산 중 여부 플래그
+      isAssigning: false,
       
-      // 좌석 생성: 직사각형 배열 (numCols = Math.ceil(numPeople/numRows))
       init() {
         this.seatMatrix = [];
         this.excludedSeats.clear();
@@ -183,7 +182,6 @@
         html += '</table>';
         document.getElementById('gridArea').innerHTML = html;
     
-        // 수동 좌석 클릭 시 제외/복원 처리 (제외 시 셀의 내용은 '-'로 변경)
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
@@ -204,12 +202,10 @@
         } else {
           this.excludedSeats.add(cellId);
           this.tdElements[cellId].classList.add('excluded');
-          // 삭제 시 셀 내용 "-"로 변경
           this.tdElements[cellId].textContent = '-';
         }
       },
     
-      // 고급 자리 배치 (GA, 적응형 돌연변이, 후처리 로컬 탐색 적용)
       async assignSeatsAdvanced() {
         if (this.isAssigning) {
           alert("이미 계산 중입니다.");
@@ -251,7 +247,6 @@
         availableSeats.sort((a, b) => (a.row - b.row) || (a.col - b.col));
         const seats = availableSeats;
     
-        // 로딩 바 표시
         const loadingContainer = document.getElementById('loadingContainer');
         const loadingBar = document.getElementById('loadingBar');
         loadingContainer.style.display = 'block';
@@ -276,7 +271,6 @@
           }
           population.sort((a, b) => b.fitness - a.fitness);
     
-          // 적응형 돌연변이 확률 조정
           let currentBestFitness = population[0].fitness;
           if (currentBestFitness - previousBestFitness < 0.001) {
             mutationProb = Math.min(mutationProb + 0.05, 0.5);
@@ -304,15 +298,12 @@
         population.sort((a, b) => b.fitness - a.fitness);
         let best = population[0];
     
-        // 후처리 로컬 탐색
         best = localSearch(best, seats, frontArr, backArr, notPairs);
     
-        // 결과 반영
         for (let s of seats) {
           const pid = best.mapping[s.id];
           this.tdElements[s.id].textContent = pid || '-';
         }
-        // 조건 이행률: 각 쌍의 d를 최대거리×2/3 기준으로 평가
         if (!notPairs.length) {
           document.getElementById('scoreArea').textContent = '조건이행률: 100%, 처리시간: ' + (((performance.now() - startTime) / 1000).toFixed(2)) + '초';
         } else {
@@ -358,8 +349,9 @@
         return best;
       },
     
-      // 앞자리 선호 보상 적용: 앞자리 선호자(frontArr에 포함)가 반드시 앞 3줄(행 인덱스 0, 1, 2)에 배정되도록 함.
-      // 만약 앞쪽 3줄에 배정되지 않은 경우, -1000의 페널티를 부여합니다.
+      // 앞자리 선호 보상:
+      // 앞자리 선호자(frontArr에 포함된 번호)는 반드시 앞 3줄(행 인덱스 0, 1, 2)에 배정되어야 하며, 
+      // 만약 그 외의 줄에 배정되면 -10000의 페널티를 부여하여 후보 해를 무효화합니다.
       calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
         if (notPairs.length > 0) {
@@ -387,10 +379,10 @@
         for (let s of seats) {
           const pid = mapping[s.id];
           if (!pid) continue;
-          // 앞자리 선호자: 반드시 앞 3줄(행 인덱스 0,1,2)에 있어야 함.
           if (frontArr.includes(pid)) {
-            if (s.row >= 3) {
-              sc -= 1000; // 강력한 페널티 부여
+            // 앞자리 선호자는 반드시 앞 3줄(행 인덱스 0,1,2)이어야 함
+            if (s.row > 2) {
+              return -10000;
             } else {
               sc += ((this.seatMatrix.length - s.row) * 10);
             }
@@ -474,24 +466,20 @@
     
         let notPairs = [];
         if (nt !== '') {
-          // "/"로 그룹 분리, 각 그룹은 쉼표나 공백을 구분자로 번호 추출
           let groupStrs = nt.split('/').map(s => s.trim()).filter(s => s !== '');
           let groups = groupStrs.map(group => group.split(/[,\s]+/).filter(s => s !== ''));
           for (let group of groups) {
             if (group.length < 2) return { ok: false, msg: '같이 앉기 싫은 그룹은 최소 2명 이상이어야 합니다.' };
           }
-          // 그룹 내 중복 검사
           for (let group of groups) {
             if (new Set(group).size !== group.length) return { ok: false, msg: '같이 앉기 싫은 쌍 그룹 내 중복 번호가 있습니다.' };
           }
-          // 서로 다른 그룹 간 겹치는 번호 검사 (부분 또는 완전 포함)
           for (let i = 0; i < groups.length; i++) {
             for (let j = i + 1; j < groups.length; j++) {
               let intersection = groups[i].filter(x => groups[j].includes(x));
               if (intersection.length > 0) return { ok: false, msg: '같이 앉기 싫은 쌍에서 겹치는 번호가 발견되었습니다.' };
             }
           }
-          // 각 그룹별 모든 2명 조합으로 생성
           for (let group of groups) {
             for (let i = 0; i < group.length - 1; i++) {
               for (let j = i + 1; j < group.length; j++) {
