@@ -63,6 +63,7 @@
   <div class="footer">made by 20707 with GPT</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
+// === 유틸 함수들 ===
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
 function parseList(str){if(!str)return[];return str.split(',').map(x=>x.trim()).filter(x=>x!=='')}
 function hasDup(arr){return new Set(arr).size!==arr.length}
