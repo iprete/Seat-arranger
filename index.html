@@ -20,6 +20,8 @@
     td.desk-td{background-color:#ffe67e;color:#444;font-weight:bold;cursor:default;width:auto}
     .footer{text-align:center;font-size:12px;color:#777;margin-top:40px;margin-bottom:10px}
     #scoreArea{text-align:center;margin-top:10px;font-weight:bold;color:#333}
+    #progressContainer{width:100%;background:#ddd; margin:20px 0; border-radius:5px; overflow:hidden;}
+    #progressBar{width:0%;height:20px;background:#4CAF50;color:white;text-align:center;line-height:20px;font-size:14px;}
   </style>
 </head>
 <body>
@@ -148,7 +150,7 @@
           let mapping=arrayToMapping(perm,seats);
           population.push({mapping,fitness:0,perm});
         }
-        document.getElementById('scoreArea').innerHTML=`<div id="progressContainer" style="width:100%;background:#ddd;"><div id="progressBar" style="width:0%;height:20px;background:#4CAF50;color:white;text-align:center;"></div></div>`;
+        document.getElementById('scoreArea').innerHTML='<div id="progressContainer"><div id="progressBar">0%</div></div>';
         for(let g=0;g<generations;g++){
           for(let p of population){p.fitness=this.calculateFitness(p.mapping,seats,frontArr,backArr,notGroups)}
           population.sort((a,b)=>b.fitness-a.fitness);
