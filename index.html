@@ -123,6 +123,7 @@
 <body>
   <div class="container">
     <h1>자리배치표 - 고급 탐색</h1>
+
     <!-- 입력 영역 -->
     <div class="input-group">
       <label>인원 수:</label>
@@ -152,21 +153,26 @@
       <label>최적화 단계 (많을수록 오래 걸림):</label>
       <input id="generations" type="number" value="15" />
     </div>
+
     <div class="buttons">
       <button onclick="app.init()">좌석 생성하기</button>
       <button id="assignSeatsAdvancedButton" onclick="app.assignSeatsAdvanced()">고급 자리 배치</button>
       <button onclick="app.downloadPDF()">PDF 저장</button>
     </div>
+
     <!-- 로딩 바 -->
     <div id="loadingContainer">
       <div id="loadingBar"></div>
     </div>
+
     <!-- 표가 들어갈 영역 -->
     <div id="gridArea"></div>
     <!-- 조건 이행률 및 처리시간 표시 -->
     <div id="scoreArea"></div>
   </div>
+
   <div class="footer">made by 20707 with GPT</div>
+
   <!-- jsPDF (PDF 변환) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
@@ -296,7 +302,7 @@
         html += '</table>';
         document.getElementById('gridArea').innerHTML = html;
     
-        // 수동 좌석 클릭 시 제외/복원
+        // 수동 좌석 클릭 시 제외/복원 처리
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
@@ -477,10 +483,11 @@
         return sc;
       },
     
-      // 만족도 계산: 각 쌍에 대해 d가 4 이상이면 100%, 미만이면 (d/4)*100% 만족도를 평균내어 반환
+      // 만족도 계산: 각 쌍에 대해 d가 6 이상이면 100%, 미만이면 (d/6)*100%로 계산하여 평균 반환
       computeSatisfaction(mapping, seats, notPairs) {
         if (!notPairs.length) return 100;
         let sumRatio = 0, cnt = 0;
+        const threshold = 6;  // 임계값을 6으로 변경
         for (let [a, b] of notPairs) {
           let s1 = null, s2 = null;
           for (let s of seats) {
@@ -490,7 +497,7 @@
           }
           if (s1 && s2) {
             const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
-            const ratio = d >= 4 ? 1 : d / 4;
+            const ratio = d >= threshold ? 1 : d / threshold;
             sumRatio += ratio;
             cnt++;
           }
