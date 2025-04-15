@@ -4,12 +4,125 @@
   <meta charset="UTF-8" />
   <title>자리배치표 - 고급 탐색</title>
   <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9fc;
+    }
+    .container {
+      max-width: 650px;
+      margin: 30px auto;
+      padding: 20px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #333;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      outline: none;
+    }
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .buttons button {
+      padding: 12px;
+      border: none;
+      border-radius: 5px;
+      background: #737ee0;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .buttons button:hover {
+      background: #5f69d0;
+    }
+    table {
+      border-collapse: separate;
+      border-spacing: 10px;
+      margin: 0 auto;
+      margin-top: 20px;
+    }
+    td {
+      border: 1px solid #aaa;
+      padding: 10px;
+      text-align: center;
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+      background: #fafafa;
+      position: relative;
+      transition: background 0.3s ease;
+    }
+    td:hover {
+      background: #ececff;
+    }
+    td.excluded {
+      background-color: #4da6ff;
+      color: white;
+      font-weight: bold;
+    }
+    td.desk-td {
+      background-color: #ffe67e;
+      color: #444;
+      font-weight: bold;
+      cursor: default;
+      width: auto;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      margin-top: 40px;
+      margin-bottom: 10px;
+    }
+    #scoreArea {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+    }
+    /* 로딩 바 스타일 */
+    #loadingContainer {
+      display: none;
+      margin: 10px 0;
+      background: #ccc;
+      height: 20px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #loadingBar {
+      height: 100%;
+      width: 0%;
+      background: #5f69d0;
+      transition: width 0.2s ease;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>자리배치표 - 고급 탐색</h1>
-
     <!-- 입력 영역 -->
     <div class="input-group">
       <label>인원 수:</label>
@@ -21,15 +134,16 @@
     </div>
     <div class="input-group">
       <label>앞자리 선호자 (번호 쉼표로 구분):</label>
-      <input id="frontPref" type="text" value="1,3,5" />
+      <input id="frontPref" type="text" placeholder="예: 1,3,5" value="1,3,5" />
     </div>
     <div class="input-group">
       <label>뒷자리 선호자 (번호 쉼표로 구분):</label>
-      <input id="backPref" type="text" value="10,11,12" />
+      <input id="backPref" type="text" placeholder="예: 10,11,12" value="10,11,12" />
     </div>
     <div class="input-group">
       <label>같이 앉기 싫은 쌍 (번호,번호 / 번호,번호):</label>
-      <input id="notTogether" type="text" value="1,2/3,4" />
+      <!-- 그룹은 "/"로 구분하며, 각 그룹은 쉼표나 공백으로 번호를 구분 -->
+      <input id="notTogether" type="text" placeholder="예: 1,2,3/4,5" value="1,2,3/1,2,3,4" />
     </div>
     <div class="input-group">
       <label>고급 탐색 수준 (숫자 클수록 정밀 탐색):</label>
@@ -39,53 +153,40 @@
       <label>최적화 단계 (많을수록 오래 걸림):</label>
       <input id="generations" type="number" value="15" />
     </div>
-
     <div class="buttons">
       <button onclick="app.init()">좌석 생성하기</button>
       <button id="assignSeatsAdvancedButton" onclick="app.assignSeatsAdvanced()">고급 자리 배치</button>
       <button onclick="app.downloadPDF()">PDF 저장</button>
     </div>
-
     <!-- 로딩 바 -->
-    <div id="loadingContainer" style="display:none; margin:10px 0; background:#ccc; height:20px; border-radius:5px; overflow:hidden;">
-      <div id="loadingBar" style="height:100%; width:0%; background:#5f69d0; transition:width 0.2s ease;"></div>
+    <div id="loadingContainer">
+      <div id="loadingBar"></div>
     </div>
-
     <!-- 표가 들어갈 영역 -->
     <div id="gridArea"></div>
     <!-- 조건 이행률 및 처리시간 표시 -->
     <div id="scoreArea"></div>
   </div>
-
   <div class="footer">made by 20707 with GPT</div>
-
   <!-- jsPDF (PDF 변환) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    // ---------- 유틸: 사람 번호를 '숫자'로 일관되게 관리 ----------
-    function parseList(str) {
-      if (!str) return [];
-      return str.split(',')
-        .map(x => x.trim())
-        .filter(x => x !== '')
-        .map(x => parseInt(x, 10)); // 꼭 숫자로 변환
-    }
-    // notPairs를 /로 나눈 뒤, 각 쌍(a,b)도 숫자로
-    function parseNotPairs(str) {
-      if (!str) return [];
-      return str.split('/')
-        .map(p => p.split(',').map(x => parseInt(x.trim(),10)))
-        .filter(arr => arr.length === 2); // [a,b]
-    }
-
-    // Fisher-Yates 섞기
+    // -------------------- 유틸 함수 --------------------
     function shuffle(a) {
       for (let i = a.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [a[i], a[j]] = [a[j], a[i]];
       }
     }
-    // PMX (Partially Mapped Crossover)
+    function parseList(str) {
+      if (!str) return [];
+      return str.split(',')
+        .map(x => x.trim())
+        .filter(x => x !== '');
+    }
+    function hasDup(arr) {
+      return new Set(arr).size !== arr.length;
+    }
     function pmxCrossover(parent1, parent2) {
       const size = parent1.length;
       let child = new Array(size).fill(null);
@@ -118,7 +219,6 @@
       }
       return child;
     }
-    // swap mutation
     function swapMutation(arr) {
       const size = arr.length;
       let i1 = Math.floor(Math.random() * size);
@@ -128,7 +228,6 @@
       }
       [arr[i1], arr[i2]] = [arr[i2], arr[i1]];
     }
-    // 순열 배열 → mapping
     function arrayToMapping(arr, seats) {
       const mapping = {};
       for (let i = 0; i < arr.length; i++) {
@@ -136,8 +235,8 @@
       }
       return mapping;
     }
-
-    // --- 로컬 탐색(후처리): 가까운 스왑으로 더 나은 해를 찾음 ---
+    
+    // -------------------- 로컬 탐색 (후처리) --------------------
     function localSearch(bestCandidate, seats, frontArr, backArr, notPairs) {
       let improved = true;
       let best = bestCandidate;
@@ -158,21 +257,22 @@
       }
       return best;
     }
-
-    // --------------------- 메인 객체 ---------------------
+    
+    // -------------------- 메인 객체 --------------------
     const app = {
       seatMatrix: [],
       excludedSeats: new Set(),
       tdElements: {},
-      isAssigning: false, // 중복 실행 방지
-
+      isAssigning: false,  // 계산 중 여부 플래그
+      
+      // 좌석 생성: 직사각형 배열 (numCols = Math.ceil(numPeople/numRows))
       init() {
         this.seatMatrix = [];
         this.excludedSeats.clear();
         this.tdElements = {};
         document.getElementById('gridArea').innerHTML = '';
         document.getElementById('scoreArea').textContent = '';
-
+    
         const chk = this.checkInputs();
         if (!chk.ok) {
           alert(chk.msg);
@@ -180,7 +280,7 @@
         }
         const { numPeople, numRows } = chk;
         const numCols = Math.ceil(numPeople / numRows);
-
+    
         let html = '<table>';
         html += `<tr><td class="desk-td" colspan="${numCols}">교탁</td></tr>`;
         for (let r = 0; r < numRows; r++) {
@@ -196,8 +296,8 @@
         }
         html += '</table>';
         document.getElementById('gridArea').innerHTML = html;
-
-        // 각 좌석 클릭 시 수동 제외(토글)
+    
+        // 수동 좌석 클릭 시 제외/복원
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
@@ -209,7 +309,7 @@
           }
         }
       },
-
+    
       toggleSeat(cellId) {
         if (!this.tdElements[cellId]) return;
         if (this.excludedSeats.has(cellId)) {
@@ -220,7 +320,8 @@
           this.tdElements[cellId].classList.add('excluded');
         }
       },
-
+    
+      // 고급 자리 배치 (GA, 적응형 돌연변이, 후처리 로컬 탐색 적용)
       async assignSeatsAdvanced() {
         if (this.isAssigning) {
           alert("이미 계산 중입니다.");
@@ -228,7 +329,7 @@
         }
         this.isAssigning = true;
         document.getElementById("assignSeatsAdvancedButton").disabled = true;
-
+    
         const chk = this.checkInputs();
         if (!chk.ok) {
           alert(chk.msg);
@@ -243,9 +344,8 @@
           return;
         }
         const { numPeople, frontArr, backArr, notPairs, popSize, generations } = chk;
-
-        // 제외되지 않은 좌석만 추려서 사용
-        const availableSeats = [];
+    
+        let availableSeats = [];
         for (let r = 0; r < this.seatMatrix.length; r++) {
           for (let c = 0; c < this.seatMatrix[r].length; c++) {
             const cid = this.seatMatrix[r][c];
@@ -255,60 +355,54 @@
           }
         }
         if (availableSeats.length !== numPeople) {
-          alert('사용 가능한 좌석 수가 인원 수와 정확히 맞지 않습니다. 수동으로 좌석을 제외하거나 복원해주세요.');
+          alert('사용 가능한 좌석 수가 인원 수와 정확히 맞지 않습니다. 수동으로 좌석을 제외하거나 복원하여 맞춰주세요.');
           this.isAssigning = false;
           document.getElementById("assignSeatsAdvancedButton").disabled = false;
           return;
         }
         availableSeats.sort((a, b) => (a.row - b.row) || (a.col - b.col));
         const seats = availableSeats;
-
+    
         // 로딩 바 표시
         const loadingContainer = document.getElementById('loadingContainer');
         const loadingBar = document.getElementById('loadingBar');
         loadingContainer.style.display = 'block';
         loadingBar.style.width = '0%';
-
-        // GA 초기 population
+    
         const startTime = performance.now();
-        const peopleArr = Array.from({ length: numPeople }, (_, i) => i + 1); // 숫자로
+        const peopleArr = Array.from({ length: numPeople }, (_, i) => (i + 1).toString());
         let population = [];
         for (let i = 0; i < popSize; i++) {
-          const perm = [...peopleArr];
+          let perm = [...peopleArr];
           shuffle(perm);
-          const mapping = arrayToMapping(perm, seats);
+          let mapping = arrayToMapping(perm, seats);
           population.push({ mapping, fitness: 0, perm });
         }
-
-        // 적응형 돌연변이 관련 변수
+    
         let mutationProb = 0.3;
         let previousBestFitness = -Infinity;
-
-        // GA 메인 루프
+    
         for (let g = 0; g < generations; g++) {
           for (let p of population) {
             p.fitness = this.calculateFitness(p.mapping, seats, frontArr, backArr, notPairs);
           }
           population.sort((a, b) => b.fitness - a.fitness);
-
-          // 돌연변이 확률 조정
-          const currentBestFitness = population[0].fitness;
+    
+          // 적응형 돌연변이 확률 조정
+          let currentBestFitness = population[0].fitness;
           if (currentBestFitness - previousBestFitness < 0.001) {
             mutationProb = Math.min(mutationProb + 0.05, 0.5);
           } else {
             mutationProb = Math.max(mutationProb - 0.05, 0.1);
           }
           previousBestFitness = currentBestFitness;
-
-          // 엘리트 보존
+    
           const eliteCount = Math.floor(popSize * 0.2);
           const newPop = population.slice(0, eliteCount);
-
-          // 나머지 개체 채우기
           while (newPop.length < popSize) {
-            const p1 = this.tournamentSelection(population);
-            const p2 = this.tournamentSelection(population);
-            const childPerm = pmxCrossover(p1.perm, p2.perm);
+            const parent1 = this.tournamentSelection(population);
+            const parent2 = this.tournamentSelection(population);
+            const childPerm = pmxCrossover(parent1.perm, parent2.perm);
             if (Math.random() < mutationProb) {
               swapMutation(childPerm);
             }
@@ -316,85 +410,112 @@
             newPop.push({ mapping: childMapping, fitness: 0, perm: childPerm });
           }
           population = newPop;
-
-          // 진행도 표시
           loadingBar.style.width = ((g + 1) / generations * 100) + '%';
-          await new Promise(res => setTimeout(res, 0));
+          await new Promise(resolve => setTimeout(resolve, 0));
         }
-        // 최적 해
         population.sort((a, b) => b.fitness - a.fitness);
         let best = population[0];
-
-        // 로컬 탐색 후처리
+    
+        // 후처리 로컬 탐색
         best = localSearch(best, seats, frontArr, backArr, notPairs);
-
+    
         // 결과 반영
         for (let s of seats) {
           const pid = best.mapping[s.id];
-          this.tdElements[s.id].textContent = pid === undefined ? '-' : pid;
+          this.tdElements[s.id].textContent = pid || '-';
         }
-        const ratio = this.computeSatisfaction(best.mapping, seats, notPairs);
-        const endTime = performance.now();
-        const sec = ((endTime - startTime) / 1000).toFixed(2);
-        document.getElementById('scoreArea').textContent =
-          `조건이행률: ${ratio.toFixed(2)}%, 처리시간: ${sec}초`;
-
+        // 조건 이행률: 이전 방식, 단 각 쌍의 만족도를 최대거리*2/3 기준으로 평가
+        if (!notPairs.length) {
+          document.getElementById('scoreArea').textContent = '조건이행률: 100%, 처리시간: ' + (((performance.now() - startTime) / 1000).toFixed(2)) + '초';
+        } else {
+          const rowMax = this.seatMatrix.length;
+          const colMax = Math.max(...this.seatMatrix.map(row => row.length));
+          const maxDist = (rowMax - 1) + (colMax - 1);
+          const threshold = maxDist * 2 / 3;
+          let sumRatio = 0, cnt = 0;
+          for (let [a, b] of notPairs) {
+            let s1 = null, s2 = null;
+            for (let s of seats) {
+              if (best.mapping[s.id] === a) s1 = s;
+              if (best.mapping[s.id] === b) s2 = s;
+              if (s1 && s2) break;
+            }
+            if (s1 && s2) {
+              const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
+              const ratio = d >= threshold ? 1 : d / threshold;
+              sumRatio += ratio;
+              cnt++;
+            }
+          }
+          const satisfaction = cnt === 0 ? 100 : (sumRatio / cnt) * 100;
+          const endTime = performance.now();
+          const sec = ((endTime - startTime) / 1000).toFixed(2);
+          document.getElementById('scoreArea').textContent =
+            `조건이행률: ${satisfaction.toFixed(2)}%, 처리시간: ${sec}초`;
+        }
         loadingContainer.style.display = 'none';
         this.isAssigning = false;
         document.getElementById("assignSeatsAdvancedButton").disabled = false;
       },
-
-      // ---------------------------------------------------------------------
-      // calculateFitness: 거리가 '너무' 가까우면 큰 벌점(음수)을 주는 방식
-      // ---------------------------------------------------------------------
+    
+      tournamentSelection(population) {
+        const tournamentSize = 3;
+        let best = null;
+        for (let i = 0; i < tournamentSize; i++) {
+          const candidate = population[Math.floor(Math.random() * population.length)];
+          if (!best || candidate.fitness > best.fitness) {
+            best = candidate;
+          }
+        }
+        return best;
+      },
+    
+      // 앞자리 선호 보상: 교탁에 가까울수록(행 번호가 낮을수록) 높은 보상 부여
       calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
-
-        // --- (1) 싫은 쌍 거리 ---
-        // threshold = 4 이상이면 어느정도 떨어짐, 이하이면 큰 벌점
-        // 여기서는 예시로 d<4면 sc -= (4-d)*20 처럼 감점을 주어 최대한 떨어뜨리게 함
-        const threshold = 4;
-        for (let [p1, p2] of notPairs) {
-          let s1 = null, s2 = null;
-          for (let s of seats) {
-            if (mapping[s.id] === p1) s1 = s;
-            if (mapping[s.id] === p2) s2 = s;
-            if (s1 && s2) break;
-          }
-          if (s1 && s2) {
-            const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
-            if (d < threshold) {
-              // 가까울수록 큰 벌점
-              sc -= (threshold - d) * 20; 
-            } else {
-              // 충분히 떨어짐
-              sc += 10; 
+        if (notPairs.length > 0) {
+          const rowMax = this.seatMatrix.length;
+          const colMax = Math.max(...this.seatMatrix.map(row => row.length));
+          const maxDist = (rowMax - 1) + (colMax - 1);
+          const threshold = maxDist * 2 / 3;
+          for (let [p1, p2] of notPairs) {
+            let s1 = null, s2 = null;
+            for (let s of seats) {
+              if (mapping[s.id] === p1) s1 = s;
+              if (mapping[s.id] === p2) s2 = s;
+              if (s1 && s2) break;
+            }
+            if (s1 && s2) {
+              const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
+              if (d >= threshold) {
+                sc += 40;
+              } else {
+                sc += (d / threshold) * 40;
+              }
             }
           }
         }
-
-        // --- (2) 앞자리, 뒷자리 선호 ---
         for (let s of seats) {
           const pid = mapping[s.id];
-          if (pid === undefined) continue;
+          if (!pid) continue;
           if (frontArr.includes(pid)) {
-            // 행 번호가 낮을수록 보상
-            sc += (this.seatMatrix.length - s.row) * 10;
+            sc += ((this.seatMatrix.length - s.row) * 10);
           }
           if (backArr.includes(pid)) {
-            sc += s.row * 2;
+            sc += (s.row * 2);
           }
         }
         return sc;
       },
-
-      // ---------------------------------------------------------------------
-      // computeSatisfaction: 거리 6 이상이면 100%, 미만이면 (d/6)
-      // ---------------------------------------------------------------------
+    
+      // 만족도 계산: 각 쌍의 d를 최대 거리로 나눈 후 평균×100
       computeSatisfaction(mapping, seats, notPairs) {
         if (!notPairs.length) return 100;
+        const rowMax = this.seatMatrix.length;
+        const colMax = Math.max(...this.seatMatrix.map(row => row.length));
+        const maxDist = (rowMax - 1) + (colMax - 1);
+        const threshold = maxDist * 2 / 3;
         let sumRatio = 0, cnt = 0;
-        const threshold = 6;
         for (let [a, b] of notPairs) {
           let s1 = null, s2 = null;
           for (let s of seats) {
@@ -412,20 +533,7 @@
         if (cnt === 0) return 100;
         return (sumRatio / cnt) * 100;
       },
-
-      // 토너먼트 선택
-      tournamentSelection(pop) {
-        const tSize = 3;
-        let best = null;
-        for (let i = 0; i < tSize; i++) {
-          const candidate = pop[Math.floor(Math.random() * pop.length)];
-          if (!best || candidate.fitness > best.fitness) {
-            best = candidate;
-          }
-        }
-        return best;
-      },
-
+    
       downloadPDF() {
         const table = document.querySelector('#gridArea table');
         if (!table) {
@@ -445,44 +553,69 @@
         }
         doc.save('자리배치.pdf');
       },
-
-      // ---------------------------------------------------------------------
-      // checkInputs: 기본 입력 파싱 -> 숫자
-      // ---------------------------------------------------------------------
+    
       checkInputs() {
         const np = parseInt(document.getElementById('numPeople').value, 10);
         const nr = parseInt(document.getElementById('numRows').value, 10);
-        const frontStr = document.getElementById('frontPref').value.trim();
-        const backStr  = document.getElementById('backPref').value.trim();
-        const ntStr   = document.getElementById('notTogether').value.trim();
-        const popSz   = parseInt(document.getElementById('popSize').value, 10);
-        const gens    = parseInt(document.getElementById('generations').value, 10);
-
-        if (isNaN(np) || np < 1) return { ok: false, msg: '인원 수를 1 이상으로' };
-        if (isNaN(nr) || nr < 1) return { ok: false, msg: '줄(행) 개수를 1 이상으로' };
-        if (isNaN(popSz) || popSz < 2) return { ok: false, msg: '고급 탐색 수준은 2 이상으로' };
-        if (isNaN(gens) || gens < 1) return { ok: false, msg: '최적화 단계는 1 이상으로' };
-
-        const frontArr = parseList(frontStr);
-        const backArr  = parseList(backStr);
-        const notPairs = parseNotPairs(ntStr);
-
-        // 범위 체크, 중복 등
-        // (예시만, 필요하면 더 세부 검증)
-        for (let x of frontArr) {
-          if (x<1 || x>np) return { ok:false, msg:`앞자리선호 ${x}가 범위 초과` };
+        const fp = document.getElementById('frontPref').value.trim();
+        const bp = document.getElementById('backPref').value.trim();
+        const nt = document.getElementById('notTogether').value.trim();
+        const popSz = parseInt(document.getElementById('popSize').value, 10);
+        const gens = parseInt(document.getElementById('generations').value, 10);
+    
+        if (isNaN(np) || np < 1) return { ok: false, msg: '인원 수를 1 이상으로 입력해주세요.' };
+        if (isNaN(nr) || nr < 1) return { ok: false, msg: '줄(행) 수를 1 이상으로 입력해주세요.' };
+        if (isNaN(popSz) || popSz < 2) return { ok: false, msg: '고급 탐색 수준은 2 이상으로 입력해주세요.' };
+        if (isNaN(gens) || gens < 1) return { ok: false, msg: '최적화 단계는 1 이상으로 입력해주세요.' };
+    
+        const frontArr = parseList(fp);
+        const backArr = parseList(bp);
+        if (hasDup(frontArr)) return { ok: false, msg: '앞자리 선호 번호에 중복이 있습니다.' };
+        if (hasDup(backArr)) return { ok: false, msg: '뒷자리 선호 번호에 중복이 있습니다.' };
+        for (let f of frontArr) {
+          if (backArr.includes(f)) return { ok: false, msg: `${f}가 앞뒤 선호에 동시에 포함되어 있습니다.` };
         }
-        for (let x of backArr) {
-          if (x<1 || x>np) return { ok:false, msg:`뒷자리선호 ${x}가 범위 초과` };
+        for (let v of [...frontArr, ...backArr]) {
+          const x = parseInt(v, 10);
+          if (x < 1 || x > np) return { ok: false, msg: `선호번호 ${v}가 인원 수 범위를 벗어났습니다.` };
         }
-        for (let [a,b] of notPairs) {
-          if (a<1||a>np || b<1||b>np) {
-            return { ok:false, msg:`싫은쌍 (${a},${b}) 범위 초과`};
+    
+        let notPairs = [];
+        if (nt !== '') {
+          // "/"로 그룹 분리, 각 그룹은 쉼표나 공백을 구분자로 번호 추출
+          let groupStrs = nt.split('/').map(s => s.trim()).filter(s => s !== '');
+          let groups = groupStrs.map(group => group.split(/[,\s]+/).filter(s => s !== ''));
+          for (let group of groups) {
+            if (group.length < 2) return { ok: false, msg: '같이 앉기 싫은 그룹은 최소 2명 이상이어야 합니다.' };
+          }
+          // 그룹 내 중복 검사
+          for (let group of groups) {
+            if (new Set(group).size !== group.length) return { ok: false, msg: '같이 앉기 싫은 쌍 그룹 내 중복 번호가 있습니다.' };
+          }
+          // 서로 다른 그룹 간 겹치는 번호 검사 (부분 또는 완전 포함)
+          for (let i = 0; i < groups.length; i++) {
+            for (let j = i + 1; j < groups.length; j++) {
+              let intersection = groups[i].filter(x => groups[j].includes(x));
+              if (intersection.length > 0) return { ok: false, msg: '같이 앉기 싫은 쌍에서 겹치는 번호가 발견되었습니다.' };
+            }
+          }
+          // 각 그룹별 모든 2명 조합으로 생성
+          for (let group of groups) {
+            for (let i = 0; i < group.length - 1; i++) {
+              for (let j = i + 1; j < group.length; j++) {
+                const a = group[i], b = group[j];
+                const aa = parseInt(a, 10), bb = parseInt(b, 10);
+                if (aa < 1 || aa > np || bb < 1 || bb > np) {
+                  return { ok: false, msg: `쌍 (${a},${b})가 인원 수 범위를 벗어났습니다.` };
+                }
+                notPairs.push([a, b]);
+              }
+            }
           }
         }
-
+    
         return {
-          ok:true,
+          ok: true,
           numPeople: np,
           numRows: nr,
           frontArr,
