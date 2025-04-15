@@ -186,15 +186,12 @@
           let mapping=arrayToMapping(perm,seats);
           population.push({mapping,fitness:0,perm});
         }
-        // 로딩바 보이기
         document.getElementById('progressContainer').style.display='block';
         document.getElementById('progressBar').style.width="0%";
         document.getElementById('progressBar').textContent="0%";
         let bestFitnessOld=-Infinity, stagnantCount=0, mutationProbability=0.2;
         for(let g=0;g<generations;g++){
-          for(let p of population){
-            p.fitness=this.calculateFitness(p.mapping,seats,frontArr,backArr,notGroups);
-          }
+          for(let p of population){p.fitness=this.calculateFitness(p.mapping,seats,frontArr,backArr,notGroups)}
           population.sort((a,b)=>b.fitness-a.fitness);
           if(population[0].fitness>bestFitnessOld){
             bestFitnessOld=population[0].fitness;
@@ -202,9 +199,7 @@
             mutationProbability=0.2;
           } else {
             stagnantCount++;
-            if(stagnantCount>=5){
-              mutationProbability=0.3;
-            }
+            if(stagnantCount>=5){mutationProbability=0.3;}
           }
           const eliteCount=Math.floor(popSize*0.2);
           const newPop=population.slice(0,eliteCount);
@@ -212,9 +207,7 @@
             const parent1=this.tournamentSelection(population);
             const parent2=this.tournamentSelection(population);
             const childPerm=pmxCrossover(parent1.perm,parent2.perm);
-            if(Math.random()<mutationProbability){
-              swapMutation(childPerm);
-            }
+            if(Math.random()<mutationProbability){swapMutation(childPerm);}
             const childMapping=arrayToMapping(childPerm,seats);
             newPop.push({mapping:childMapping,fitness:0,perm:childPerm});
           }
@@ -257,7 +250,7 @@
                 if(mapping[s.id]===p2)s2=s;
                 if(s1&&s2)break;
               }
-              if(s1&&s2){let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col);sc+=d*10}
+              if(s1&&s2){let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col); sc+= d*30;}
             }
           }
         }
@@ -287,7 +280,7 @@
                 if(mapping[s.id]===p2)s2=s;
                 if(s1&&s2)break;
               }
-              if(s1&&s2){let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col);sumRatio+=(d/maxDist);cnt++}
+              if(s1&&s2){let d=Math.abs(s1.row-s2.row)+Math.abs(s1.col-s2.col); sumRatio+=(d/maxDist); cnt++;}
             }
           }
         }
@@ -302,7 +295,7 @@
         let y=10;
         for(const row of table.rows){
           let x=10;
-          for(const cell of row.cells){doc.text(cell.textContent,x,y);x+=20}
+          for(const cell of row.cells){doc.text(cell.textContent,x,y); x+=20}
           y+=10;
         }
         doc.save('자리배치.pdf');
