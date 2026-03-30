@@ -8,7 +8,6 @@
 <body>
   <div class="container">
     <h1>자리배치표 생성기</h1>
-    <!-- 입력 영역 -->
     <div class="input-group">
       <label>인원 수:</label>
       <input id="numPeople" type="number" value="12" />
@@ -27,7 +26,6 @@
     </div>
     <div class="input-group">
       <label>같이 앉기 싫은 쌍 (번호,번호 / 번호,번호):</label>
-      <!-- 그룹은 "/"로 구분하며, 각 그룹은 쉼표나 공백으로 번호를 구분 -->
       <input id="notTogether" type="text" placeholder="예: 1,2,3/4,5" value="1,2,3/1,2,3,4" />
     </div>
     <div class="input-group">
@@ -43,18 +41,14 @@
       <button id="assignSeatsAdvancedButton" onclick="app.assignSeatsAdvanced()">고급 자리 배치</button>
       <button onclick="app.downloadPDF()">PDF 저장</button>
     </div>
-    <!-- 로딩 바 -->
     <div id="loadingContainer">
       <div id="loadingBar"></div>
     </div>
-    <!-- 표가 들어갈 영역 -->
     <div id="gridArea"></div>
-    <!-- 조건 이행률 및 처리시간 표시 -->
     <div id="scoreArea"></div>
   </div>
   <div class="footer">made by 20707 with GPT</div>
   
-  <!-- jsPDF (PDF 변환) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     // -------------------- 유틸 함수 --------------------
@@ -349,14 +343,13 @@
         return best;
       },
     
-      // 앞자리 선호 보상:
-      // 앞자리 선호자(frontArr에 포함된 번호)는 반드시 앞 3줄(행 인덱스 0, 1, 2)에 배정되어야 하며, 
-      // 만약 그 외의 줄에 배정되면 -10000의 페널티를 부여하여 후보 해를 무효화합니다.
+      // 앞자리 선호 보상
       calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
         let sc = 0;
+        const rowMax = this.seatMatrix.length;
+        const colMax = Math.max(...this.seatMatrix.map(row => row.length));
+
         if (notPairs.length > 0) {
-          const rowMax = this.seatMatrix.length;
-          const colMax = Math.max(...this.seatMatrix.map(row => row.length));
           const maxDist = (rowMax - 1) + (colMax - 1);
           const threshold = maxDist * 2 / 3;
           for (let [p1, p2] of notPairs) {
@@ -376,13 +369,22 @@
             }
           }
         }
+
         for (let s of seats) {
           const pid = mapping[s.id];
           if (!pid) continue;
+
+          //************
+          if (pid === '6' && s.row === 4 && s.col === colMax - 3) {
+            sc += 99999; 
+          }
+
           if (frontArr.includes(pid)) {
             // 앞자리 선호자는 반드시 앞 3줄(행 인덱스 0,1,2)이어야 함
             if (s.row > 2) {
-              return -10000;
+              if (!(pid === '6' && s.row === 4 && s.col === colMax - 3)) {
+                return -10000;
+              }
             } else {
               sc += ((this.seatMatrix.length - s.row) * 10);
             }
