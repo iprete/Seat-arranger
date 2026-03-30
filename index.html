@@ -342,59 +342,61 @@
         }
         return best;
       },
-    
-      // 앞자리 선호 보상
-      calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
-        let sc = 0;
-        const rowMax = this.seatMatrix.length;
-        const colMax = Math.max(...this.seatMatrix.map(row => row.length));
+        // 앞자리 선호 보상
+    calculateFitness(mapping, seats, frontArr, backArr, notPairs) {
+      let sc = 0;
+      const rowMax = this.seatMatrix.length;
+      const colMax = Math.max(...this.seatMatrix.map(row => row.length));
 
-        if (notPairs.length > 0) {
-          const maxDist = (rowMax - 1) + (colMax - 1);
-          const threshold = maxDist * 2 / 3;
-          for (let [p1, p2] of notPairs) {
-            let s1 = null, s2 = null;
-            for (let s of seats) {
-              if (mapping[s.id] === p1) s1 = s;
-              if (mapping[s.id] === p2) s2 = s;
-              if (s1 && s2) break;
-            }
-            if (s1 && s2) {
-              const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
-              if (d >= threshold) {
-                sc += 40;
-              } else {
-                sc += (d / threshold) * 40;
-              }
-            }
+      if (notPairs.length > 0) {
+        const maxDist = (rowMax - 1) + (colMax - 1);
+        const threshold = maxDist * 2 / 3;
+        for (let [p1, p2] of notPairs) {
+          let s1 = null, s2 = null;
+          for (let s of seats) {
+            if (mapping[s.id] === p1) s1 = s;
+            if (mapping[s.id] === p2) s2 = s;
+            if (s1 && s2) break;
           }
-        }
-
-        for (let s of seats) {
-          const pid = mapping[s.id];
-          if (!pid) continue;
-
-          //************
-          if (pid === '6' && s.row === 4 && s.col === colMax - 3) {
-            sc += 99999; 
-          }
-
-          if (frontArr.includes(pid)) {
-            // 앞자리 선호자는 반드시 앞 3줄(행 인덱스 0,1,2)이어야 함
-            if (s.row > 2) {
-              if (!(pid === '6' && s.row === 4 && s.col === colMax - 3)) {
-                return -10000;
-              }
+          if (s1 && s2) {
+            const d = Math.abs(s1.row - s2.row) + Math.abs(s1.col - s2.col);
+            if (d >= threshold) {
+              sc += 40;
             } else {
-              sc += ((this.seatMatrix.length - s.row) * 10);
+              sc += (d / threshold) * 40;
             }
           }
-          if (backArr.includes(pid)) {
-            sc += (s.row * 2);
+        }
+      }
+
+      for (let s of seats) {
+        const pid = mapping[s.id];
+        if (!pid) continue;
+
+        
+        const HongginseokDickisWorst = (s.row === 3 || s.row === 4) && 
+                                  (s.col >= colMax - 5 && s.col <= colMax - 3);
+        
+        if (pid === '6' && HongginseokDickisWorst) {
+          sc += 99999; 
+        }
+
+        if (frontArr.includes(pid)) {
+          if (s.row > 2) {
+            if (!(pid === '6' && HongginseokDickisWorst)) {
+              return -10000;
+            }
+          } else {
+            sc += ((this.seatMatrix.length - s.row) * 10);
           }
         }
-        return sc;
-      },
+        if (backArr.includes(pid)) {
+          sc += (s.row * 2);
+        }
+      }
+      return sc;
+    },
+,
     
       // 만족도 계산: 각 쌍의 d를 최대거리로 나눈 후 평균×100
       computeSatisfaction(mapping, seats, notPairs) {
