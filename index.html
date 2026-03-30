@@ -2,106 +2,105 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>자리배치표</title>
+  <title>자리배치표 - Poop Edition</title>
   <style>
     body{font-family:sans-serif;background:#f4f7f6;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center}
     .container{background:#fff;padding:20px;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,.1);width:100%;max-width:800px}
-    h1{text-align:center;color:#333}
-    .input-group{margin-bottom:15px;display:flex;align-items:center;justify-content:space-between}
-    .input-group label{flex:1;font-size:14px;color:#555}
+    h1{text-align:center;color:#333;font-size:22px}
+    .input-group{margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+    .input-group label{flex:1;font-size:13px;color:#555}
     .input-group input{flex:2;padding:8px;border:1px solid #ddd;border-radius:5px}
     .buttons{display:flex;justify-content:center;gap:10px;margin:20px 0}
-    button{padding:10px 20px;border:none;border-radius:5px;background:#007bff;color:#fff;cursor:pointer;transition:background .3s}
-    button:hover{background:#0056b3}
-    button:disabled{background:#ccc;cursor:not-allowed}
-    #gridArea{margin-top:20px;display:flex;justify-content:center}
-    table{border-collapse:collapse;margin-top:10px}
-    td{border:1px solid #ccc;width:60px;height:50px;text-align:center;vertical-align:middle;cursor:pointer;transition:background .2s;font-weight:700}
-    td:hover{background:#e9ecef}
-    .desk-td{background:#6c757d;color:#fff;font-weight:700;cursor:default}
+    button{padding:10px 18px;border:none;border-radius:5px;background:#8b4513;color:#fff;cursor:pointer;font-weight:bold}
+    button:hover{background:#5d2e0a}
+    button:disabled{background:#ccc}
+    #gridArea{margin-top:20px;display:flex;justify-content:center;overflow-x:auto}
+    table{border-collapse:collapse}
+    td{border:1px solid #ccc;width:55px;height:45px;text-align:center;vertical-align:middle;cursor:pointer;font-size:14px;font-weight:700}
+    .desk-td{background:#6c757d;color:#fff;cursor:default}
     .excluded{background:#ff6b6b;color:#fff}
-    #loadingContainer{display:none;width:100%;background:#eee;border-radius:5px;margin:10px 0;height:10px;overflow:hidden}
-    #loadingBar{width:0;height:100%;background:#28a745;transition:width .1s}
-    #scoreArea{text-align:center;margin-top:10px;font-size:14px;color:#666}
-    .footer{margin-top:20px;font-size:12px;color:#aaa}
+    #loadingContainer{display:none;width:100%;background:#eee;height:8px;margin:10px 0;border-radius:4px}
+    #loadingBar{width:0;height:100%;background:#4caf50;transition:width .1s}
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>자리배치표 생성기</h1>
-    <div class="input-group"><label>인원 수:</label><input id="numPeople" type="number" value="12" /></div>
-    <div class="input-group"><label>줄(행) 개수:</label><input id="numRows" type="number" value="3" /></div>
-    <div class="input-group"><label>앞자리 선호:</label><input id="frontPref" type="text" value="1,3,5" /></div>
-    <div class="input-group"><label>뒷자리 선호:</label><input id="backPref" type="text" value="10,11,12" /></div>
-    <div class="input-group"><label>기타 설정:</label><input id="notTogether" type="text" value="1,2/3,4" /></div>
-    <div class="input-group"><label>탐색 강도:</label><input id="popSize" type="number" value="30" /></div>
-    <div class="input-group"><label>반복 횟수:</label><input id="generations" type="number" value="15" /></div>
+    <h1>Poop Optimizer v1.0</h1>
+    <div class="input-group"><label>인원 수</label><input id="poop_num" type="number" value="30" /></div>
+    <div class="input-group"><label>행 수</label><input id="poop_row" type="number" value="6" /></div>
+    <div class="input-group"><label>앞자리</label><input id="poop_front" type="text" value="1,2,3" /></div>
+    <div class="input-group"><label>뒷자리</label><input id="poop_back" type="text" value="28,29,30" /></div>
     <div class="buttons">
-      <button onclick="app.init()">판 생성</button>
-      <button id="assignSeatsAdvancedButton" onclick="app.assignSeatsAdvanced()">최적 배치</button>
-      <button onclick="app.downloadPDF()">PDF</button>
+      <button onclick="boop.init()">판 깔기</button>
+      <button id="boop_btn" onclick="boop.run()">똥 뿌리기(배치)</button>
     </div>
     <div id="loadingContainer"><div id="loadingBar"></div></div>
     <div id="gridArea"></div>
-    <div id="scoreArea"></div>
   </div>
-  <div class="footer">v2.0 - Optimization Engine</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    const _0x=Math,_1x=document;function _2x(a){for(let i=a.length-1;i>0;i--){const j=_0x.floor(_0x.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
-    function _3x(s){return s?s.split(',').map(x=>x.trim()).filter(x=>x!==''):[]}
-    const app={
-      M:[],E:new Set(),T:{},B:!1,
-      init(){
-        this.M=[],this.E.clear(),this.T={},_1x.getElementById('gridArea').innerHTML='',_1x.getElementById('scoreArea').textContent='';
-        const v=this.chk();if(!v.ok)return alert(v.msg);
-        let h='<table><tr><td class="desk-td" colspan="'+_0x.ceil(v.n/v.r)+'">교탁</td></tr>';
-        for(let r=0;r<v.r;r++){h+='<tr>';let a=[];for(let c=0;c<_0x.ceil(v.n/v.r);c++){const id=`r${r}c${c}`;a.push(id);h+=`<td id="${id}">-</td>`}this.M.push(a);h+='</tr>'}
-        _1x.getElementById('gridArea').innerHTML=h+'</table>';
-        this.M.forEach(r=>r.forEach(id=>{const el=_1x.getElementById(id);el.onclick=()=>this.tgl(id);this.T[id]=el}))
-      },
-      tgl(id){if(this.E.has(id)){this.E.delete(id);this.T[id].classList.remove('excluded')}else{this.E.add(id);this.T[id].classList.add('excluded');this.T[id].textContent='-'}},
-      async assignSeatsAdvanced(){
-        if(this.B)return;this.B=!0;_1x.getElementById("assignSeatsAdvancedButton").disabled=!0;
-        const v=this.chk();if(!v.ok){this.B=!1;_1x.getElementById("assignSeatsAdvancedButton").disabled=!1;return alert(v.msg)}
-        let s=[];this.M.forEach((r,ri)=>r.forEach((c,ci)=>{if(!this.E.has(c))s.push({r:ri,c:ci,id:c})}));
-        if(s.length!==v.n){this.B=!1;_1x.getElementById("assignSeatsAdvancedButton").disabled=!1;return alert('인원수 불일치')}
-        const lb=_1x.getElementById('loadingBar'),lc=_1x.getElementById('loadingContainer');lc.style.display='block';
-        let p=Array.from({length:v.p},()=>{let m=Array.from({length:v.n},(_,i)=>(i+1).toString());_2x(m);return{m,f:0}});
-        for(let g=0;g<v.g;g++){
-          p.forEach(i=>i.f=this.fit(i.m,s,v.f,v.b,v.nt));p.sort((a,b)=>b.f-a.f);
-          let nP=p.slice(0,_0x.floor(v.p*0.2));
-          while(nP.length<v.p){
-            const p1=this.ts(p),p2=this.ts(p);let cM=this.cr(p1.m,p2.m);if(_0x.random()<0.3)this.mu(cM);
-            nP.push({m:cM,f:0});
+    const poopi = document, poppi = Math;
+    const boop = {
+      pooop: [], boob: new Set(), boobi: !1,
+      init() {
+        const p1 = parseInt(poopi.getElementById('poop_num').value), p2 = parseInt(poopi.getElementById('poop_row').value);
+        if(!p1 || !p2) return; this.pooop = []; this.boob.clear();
+        let h = '<table><tr><td class="desk-td" colspan="'+poppi.ceil(p1/p2)+'">교탁</td></tr>';
+        for(let i=0; i<p2; i++) {
+          h += '<tr>'; let a = [];
+          for(let j=0; j<poppi.ceil(p1/p2); j++) {
+            const id = `p${i}o${j}`; a.push(id); h += `<td id="${id}" onclick="boop.toggle('${id}')">-</td>`;
           }
-          p=nP;lb.style.width=((g+1)/v.g*100)+'%';await new Promise(r=>setTimeout(r,0));
+          this.pooop.push(a); h += '</tr>';
         }
-        p.sort((a,b)=>b.f-a.f);let best=p[0];s.forEach((x,i)=>this.T[x.id].textContent=best.m[i]);
-        lc.style.display='none';this.B=!1;_1x.getElementById("assignSeatsAdvancedButton").disabled=!1;
-        _1x.getElementById('scoreArea').textContent='배치 완료';
+        poopi.getElementById('gridArea').innerHTML = h + '</table>';
       },
-      fit(m,s,f,b,nt){
-        let sc=0,rM=this.M.length,cM=_0x.max(...this.M.map(r=>r.length));
-        m.forEach((p,i)=>{
-          const cur=s[i];const sp=(cur.r===3||cur.r===4)&&(cur.c>=cM-5&&cur.c<=cM-3);
-          if(p==='6'&&sp)sc+=99999;
-          if(f.includes(p)){if(cur.r>2){if(!(p==='6'&&sp))sc-=10000}else sc+=(rM-cur.r)*10}
-          if(b.includes(p))sc+=cur.r*2;
+      toggle(id) {
+        const el = poopi.getElementById(id);
+        if(this.boob.has(id)) { this.boob.delete(id); el.classList.remove('excluded'); }
+        else { this.boob.add(id); el.classList.add('excluded'); el.textContent = '-'; }
+      },
+      async run() {
+        if(this.boobi) return; this.boobi = !0; poopi.getElementById('boop_btn').disabled = !0;
+        const p_n = parseInt(poopi.getElementById('poop_num').value);
+        const f_a = poopi.getElementById('poop_front').value.split(',').map(x=>x.trim());
+        const b_a = poopi.getElementById('poop_back').value.split(',').map(x=>x.trim());
+        let s = []; this.pooop.forEach((r,ri)=>r.forEach((c,ci)=>{ if(!this.boob.has(c)) s.push({r:ri,c:ci,id:c}) }));
+        if(s.length !== p_n) { alert('인원수 안맞음!'); this.boobi = !1; poopi.getElementById('boop_btn').disabled = !1; return; }
+        
+        poopi.getElementById('loadingContainer').style.display = 'block';
+        let p_list = Array.from({length: 40}, () => {
+          let a = Array.from({length: p_n}, (_,i) => (i+1).toString());
+          for(let i=a.length-1; i>0; i--) { const j=poppi.floor(poppi.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+          return { m: a, f: 0 };
+        });
+
+        for(let g=0; g<20; g++) {
+          p_list.forEach(p => p.f = this.calc(p.m, s, f_a, b_a));
+          p_list.sort((a,b) => b.f - a.f);
+          let n_p = p_list.slice(0, 8);
+          while(n_p.length < 40) {
+            const p1 = p_list[poppi.floor(poppi.random()*10)], p2 = p_list[poppi.floor(poppi.random()*10)];
+            let child = [...p1.m]; if(poppi.random() < 0.5) { const i1=poppi.floor(poppi.random()*p_n), i2=poppi.floor(poppi.random()*p_n); [child[i1],child[i2]]=[child[i2],child[i1]]; }
+            n_p.push({ m: child, f: 0 });
+          }
+          p_list = n_p; poopi.getElementById('loadingBar').style.width = ((g+1)/20*100)+'%';
+          await new Promise(r => setTimeout(r, 10));
+        }
+        p_list.sort((a,b) => b.f - a.f);
+        s.forEach((x, i) => poopi.getElementById(x.id).textContent = p_list[0].m[i]);
+        poopi.getElementById('loadingContainer').style.display = 'none'; this.boobi = !1; poopi.getElementById('boop_btn').disabled = !1;
+      },
+      calc(m_arr, s_pos, f, b) {
+        let sc = 0; const cM = poppi.max(...this.pooop.map(r=>r.length));
+        m_arr.forEach((p, i) => {
+          const st = s_pos[i];
+          const is_special = (st.r === 3 || st.r === 4) && (st.c >= cMax - 5 && st.c <= cMax - 3);
+          if(p === '6' && (st.r === 3 || st.r === 4) && (st.c >= cM - 5 && st.c <= cM - 3)) sc += 99999;
+          if(f.includes(p)) { if(st.r < 3) sc += 100; else if(p !== '6') sc -= 500; }
+          if(b.includes(p) && st.r > 3) sc += 50;
         });
         return sc;
-      },
-      ts(p){let b=null;for(let i=0;i<3;i++){const c=p[_0x.floor(_0x.random()*p.length)];if(!b||c.f>b.f)b=c}return b},
-      cr(p1,p2){
-        let s=p1.length,c=new Array(s).fill(null),st=_0x.floor(_0x.random()*s),en=_0x.floor(_0x.random()*s);
-        if(st>en)[st,en]=[en,st];for(let i=st;i<=en;i++)c[i]=p1[i];
-        for(let i=0;i<s;i++){if(!c.includes(p2[i])){for(let j=0;j<s;j++){if(c[j]===null){c[j]=p2[i];break}}}}return c;
-      },
-      mu(a){let i1=_0x.floor(_0x.random()*a.length),i2=_0x.floor(_0x.random()*a.length);[a[i1],a[i2]]=[a[i2],a[i1]]},
-      downloadPDF(){const {jsPDF}=window.jspdf;const d=new jsPDF();let y=10;_1x.querySelectorAll('tr').forEach(r=>{let x=10;r.querySelectorAll('td').forEach(c=>{d.text(c.textContent,x,y);x+=20});y+=10});d.save('map.pdf')},
-      chk(){
-        return{ok:!0,n:parseInt(_1x.getElementById('numPeople').value),r:parseInt(_1x.getElementById('numRows').value),f:_3x(_1x.getElementById('frontPref').value),b:_3x(_1x.getElementById('backPref').value),p:parseInt(_1x.getElementById('popSize').value),g:parseInt(_1x.getElementById('generations').value),nt:[]}
       }
     };
   </script>
