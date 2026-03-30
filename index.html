@@ -25,15 +25,17 @@
 </head>
 <body>
   <div class="container">
-    <h1>Poop Optimizer v1.0</h1>
+    <h1>Seat Arranger</h1>
     <div class="input-group"><label>인원 수</label><input id="poop_num" type="number" value="30" /></div>
     <div class="input-group"><label>행 수</label><input id="poop_row" type="number" value="6" /></div>
-    <div class="input-group"><label>앞자리</label><input id="poop_front" type="text" value="1,2,3" /></div>
-    <div class="input-group"><label>뒷자리</label><input id="poop_back" type="text" value="28,29,30" /></div>
+    <div class="input-group"><label>앞자리 선호 (번호)</label><input id="poop_front" type="text" value="1,2,3" /></div>
+    <div class="input-group"><label>뒷자리 선호 (번호)</label><input id="poop_back" type="text" value="28,29,30" /></div>
+    
     <div class="buttons">
       <button onclick="boop.init()">판 깔기</button>
-      <button id="boop_btn" onclick="boop.run()">똥 뿌리기(배치)</button>
+      <button id="boop_btn" onclick="boop.run()">배치</button>
     </div>
+    
     <div id="loadingContainer"><div id="loadingBar"></div></div>
     <div id="gridArea"></div>
   </div>
@@ -41,63 +43,127 @@
   <script>
     const poopi = document, poppi = Math;
     const boop = {
-      pooop: [], boob: new Set(), boobi: !1,
+      pooop: [], 
+      boob: new Set(), 
+      boobi: !1, 
+      
       init() {
-        const p1 = parseInt(poopi.getElementById('poop_num').value), p2 = parseInt(poopi.getElementById('poop_row').value);
-        if(!p1 || !p2) return; this.pooop = []; this.boob.clear();
-        let h = '<table><tr><td class="desk-td" colspan="'+poppi.ceil(p1/p2)+'">교탁</td></tr>';
-        for(let i=0; i<p2; i++) {
-          h += '<tr>'; let a = [];
-          for(let j=0; j<poppi.ceil(p1/p2); j++) {
-            const id = `p${i}o${j}`; a.push(id); h += `<td id="${id}" onclick="boop.toggle('${id}')">-</td>`;
+        const p1 = parseInt(poopi.getElementById('poop_num').value);
+        const p2 = parseInt(poopi.getElementById('poop_row').value);
+        if(!p1 || !p2) return; 
+        
+        this.pooop = []; 
+        this.boob.clear();
+        
+        const cols = poppi.ceil(p1 / p2);
+        let h = `<table><tr><td class="desk-td" colspan="${cols}">교탁</td></tr>`;
+        
+        for(let i = 0; i < p2; i++) {
+          h += '<tr>'; 
+          let rowData = [];
+          for(let j = 0; j < cols; j++) {
+            const id = `p${i}o${j}`; 
+            rowData.push(id); 
+            h += `<td id="${id}" onclick="boop.toggle('${id}')">-</td>`;
           }
-          this.pooop.push(a); h += '</tr>';
+          this.pooop.push(rowData); 
+          h += '</tr>';
         }
         poopi.getElementById('gridArea').innerHTML = h + '</table>';
       },
+      
       toggle(id) {
         const el = poopi.getElementById(id);
-        if(this.boob.has(id)) { this.boob.delete(id); el.classList.remove('excluded'); }
-        else { this.boob.add(id); el.classList.add('excluded'); el.textContent = '-'; }
+        if(this.boob.has(id)) { 
+          this.boob.delete(id); 
+          el.classList.remove('excluded'); 
+        } else { 
+          this.boob.add(id); 
+          el.classList.add('excluded'); 
+          el.textContent = '-'; 
+        }
       },
+      
       async run() {
-        if(this.boobi) return; this.boobi = !0; poopi.getElementById('boop_btn').disabled = !0;
+        if(this.boobi) return; 
+        this.boobi = !0; 
+        poopi.getElementById('boop_btn').disabled = !0;
+        
         const p_n = parseInt(poopi.getElementById('poop_num').value);
-        const f_a = poopi.getElementById('poop_front').value.split(',').map(x=>x.trim());
-        const b_a = poopi.getElementById('poop_back').value.split(',').map(x=>x.trim());
-        let s = []; this.pooop.forEach((r,ri)=>r.forEach((c,ci)=>{ if(!this.boob.has(c)) s.push({r:ri,c:ci,id:c}) }));
-        if(s.length !== p_n) { alert('인원수 안맞음!'); this.boobi = !1; poopi.getElementById('boop_btn').disabled = !1; return; }
+        const f_a = poopi.getElementById('poop_front').value.split(',').map(x => x.trim());
+        const b_a = poopi.getElementById('poop_back').value.split(',').map(x => x.trim());
+        
+        
+        let s = []; 
+        this.pooop.forEach((r, ri) => r.forEach((c, ci) => { 
+          if(!this.boob.has(c)) s.push({ r: ri, c: ci, id: c }); 
+        }));
+
+        if(s.length !== p_n) { 
+          alert(`인원수(${p_n})와 가용한 좌석수(${s.length})가 일치하지 않습니다!`); 
+          this.boobi = !1; 
+          poopi.getElementById('boop_btn').disabled = !1; 
+          return; 
+        }
         
         poopi.getElementById('loadingContainer').style.display = 'block';
+        
+        
         let p_list = Array.from({length: 40}, () => {
-          let a = Array.from({length: p_n}, (_,i) => (i+1).toString());
-          for(let i=a.length-1; i>0; i--) { const j=poppi.floor(poppi.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+          let a = Array.from({length: p_n}, (_, i) => (i + 1).toString());
+          for(let i = a.length - 1; i > 0; i--) { 
+            const j = poppi.floor(poppi.random() * (i + 1)); 
+            [a[i], a[j]] = [a[j], a[i]]; 
+          }
           return { m: a, f: 0 };
         });
 
-        for(let g=0; g<20; g++) {
+        
+        for(let g = 0; g < 20; g++) {
           p_list.forEach(p => p.f = this.calc(p.m, s, f_a, b_a));
-          p_list.sort((a,b) => b.f - a.f);
+          p_list.sort((a, b) => b.f - a.f);
+          
           let n_p = p_list.slice(0, 8);
           while(n_p.length < 40) {
-            const p1 = p_list[poppi.floor(poppi.random()*10)], p2 = p_list[poppi.floor(poppi.random()*10)];
-            let child = [...p1.m]; if(poppi.random() < 0.5) { const i1=poppi.floor(poppi.random()*p_n), i2=poppi.floor(poppi.random()*p_n); [child[i1],child[i2]]=[child[i2],child[i1]]; }
+            const p1 = p_list[poppi.floor(poppi.random() * 10)];
+            let child = [...p1.m]; 
+            
+            if(poppi.random() < 0.5) { 
+              const i1 = poppi.floor(poppi.random() * p_n);
+              const i2 = poppi.floor(poppi.random() * p_n); 
+              [child[i1], child[i2]] = [child[i2], child[i1]]; 
+            }
             n_p.push({ m: child, f: 0 });
           }
-          p_list = n_p; poopi.getElementById('loadingBar').style.width = ((g+1)/20*100)+'%';
+          p_list = n_p; 
+          poopi.getElementById('loadingBar').style.width = ((g + 1) / 20 * 100) + '%';
           await new Promise(r => setTimeout(r, 10));
         }
-        p_list.sort((a,b) => b.f - a.f);
+
+        
+        p_list.sort((a, b) => b.f - a.f);
         s.forEach((x, i) => poopi.getElementById(x.id).textContent = p_list[0].m[i]);
-        poopi.getElementById('loadingContainer').style.display = 'none'; this.boobi = !1; poopi.getElementById('boop_btn').disabled = !1;
+        
+        poopi.getElementById('loadingContainer').style.display = 'none'; 
+        this.boobi = !1; 
+        poopi.getElementById('boop_btn').disabled = !1;
       },
+      
       calc(m_arr, s_pos, f, b) {
-        let sc = 0; const cM = poppi.max(...this.pooop.map(r=>r.length));
+        let sc = 0; 
+        const cM = poppi.max(...this.pooop.map(r => r.length));
+        
         m_arr.forEach((p, i) => {
           const st = s_pos[i];
-          const is_special = (st.r === 3 || st.r === 4) && (st.c >= cMax - 5 && st.c <= cMax - 3);
+          
+          
           if(p === '6' && (st.r === 3 || st.r === 4) && (st.c >= cM - 5 && st.c <= cM - 3)) sc += 99999;
-          if(f.includes(p)) { if(st.r < 3) sc += 100; else if(p !== '6') sc -= 500; }
+          
+          if(f.includes(p)) { 
+            if(st.r < 3) sc += 100; 
+            else if(p !== '6') sc -= 500; 
+          }
+          
           if(b.includes(p) && st.r > 3) sc += 50;
         });
         return sc;
